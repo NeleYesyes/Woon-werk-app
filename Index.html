@@ -1,0 +1,2194 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Terugbetaling Woon-Werkverkeer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #26295a;
+      --secondary: #d498c4;
+      --tertiary: #a8d3c4;
+      --quaternary: #7ac5d3;
+      --bg: #f8fafc;
+      --text: #334155;
+      --border: #e2e8f0;
+      --white: #ffffff;
+      --danger: #D32F2F;
+      --success-bg: #f0fdf4;
+      --success-border: #86efac;
+      --success-text: #15803d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px 12px 60px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container { width: 100%; max-width: 580px; }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 22px 24px 16px;
+      border-radius: 12px 12px 0 0;
+    }
+    .header .label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--secondary); margin-bottom: 4px;
+    }
+    .header h1 { margin: 0 0 14px; font-size: 18px; font-weight: 700; }
+    .rainbow { display: flex; height: 4px; }
+    .rainbow div { flex: 1; }
+    .r1 { background: var(--secondary); } .r2 { background: var(--tertiary); }
+    .r3 { background: var(--quaternary); } .r4 { background: #363a7a; }
+
+    /* ─── CARD ─── */
+    .card {
+      background: white; padding: 24px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 10px 25px rgba(38,41,90,.07);
+    }
+
+    /* ─── SCREENS ─── */
+    .screen { display: none; }
+    .screen.aktief { display: block; }
+
+    /* ─── SPINNER ─── */
+    .spinner-wrap { display: flex; flex-direction: column; align-items: center; padding: 36px 0; gap: 14px; color: #94a3b8; }
+    .spinner { width: 34px; height: 34px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; will-change: transform; backface-visibility: hidden; }
+    .form-fout { display: none; font-size: 13px; font-weight: 600; color: var(--danger); background: #fff1f2; border: 1.5px solid #fda4af; border-radius: 8px; padding: 9px 13px; margin-bottom: 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── FORM ─── */
+    .form-group { margin-bottom: 14px; }
+    .field-label { display: block; font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .field-label .vereist { color: var(--danger); margin-left: 2px; font-size: 13px; line-height: 1; }
+    .field-label .optioneel { color: #94a3b8; font-size: 10px; font-weight: 400; margin-left: 4px; text-transform: none; letter-spacing: 0; }
+    input[type="text"], input[type="date"], input[type="number"], select {
+      width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: 'Poppins', sans-serif; font-size: 14px; color: var(--text);
+      background: var(--bg); transition: border-color .2s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--quaternary); background: white; }
+    input[readonly] { background: #f1f5f9; color: #64748b; cursor: default; }
+    #p-naam[readonly]                              { font-weight: 400; color: var(--primary); }
+    #p-domein-display[readonly], #p-iban[readonly] { color: #94a3b8; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+
+    /* ─── KNOPPEN ─── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 11px 18px; border: none; border-radius: 8px;
+      font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all .2s; width: 100%;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #1a1c40; }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-outline { background: white; color: var(--primary); border: 1.5px solid var(--border); }
+    .btn-outline:hover { background: #f1f5f9; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; width: auto; }
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+
+    /* JA / NEE */
+    .ja-nee-row { display: flex; gap: 12px; margin-top: 18px; }
+    .btn-ja { flex: 1; padding: 14px; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; border: 2px solid transparent; background: var(--tertiary); color: var(--primary); transition: all .2s; }
+    .btn-ja:hover { background: #8ec9b7; }
+    .btn-nee { flex: 1; padding: 14px; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; border: 2px solid #fca5a5; background: #fee2e2; color: var(--danger); transition: all .2s; }
+    .btn-nee:hover { background: #fecaca; }
+
+    /* CATEGORIE */
+    .cat-grid { display: grid; gap: 10px; margin-top: 8px; }
+    .cat-btn { padding: 16px 18px; border-radius: 10px; border: 2px solid var(--border); background: white; cursor: pointer; text-align: left; transition: all .2s; font-family: 'Poppins', sans-serif; }
+    .cat-btn:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(38,41,90,.08); }
+    .cat-btn .emoji { font-size: 22px; display: block; margin-bottom: 4px; }
+    .cat-btn .cat-titel { font-size: 15px; font-weight: 700; color: var(--primary); }
+    .cat-btn .cat-sub { font-size: 12px; color: #64748b; }
+    .cat-btn.fiets    { border-left: 4px solid var(--tertiary); }
+    .cat-btn.woonwerk { border-left: 4px solid var(--quaternary); }
+    .cat-btn.dienst   { border-left: 4px solid var(--secondary); }
+
+    /* KWARTAAL TABS */
+    .kwartaal-tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+    .kw-tab { flex: 1; padding: 8px 4px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; text-align: center; transition: all .2s; }
+    .kw-tab .kw-sub { display: block; font-size: 9px; font-weight: 400; opacity: .75; margin-top: 1px; }
+    .kw-tab.aktief { background: #5b21b6; color: white; border-color: #5b21b6; box-shadow: 0 2px 8px rgba(91,33,182,.30); }
+
+    /* TOTAAL BALK */
+    .totaal-balk { background: var(--success-bg); border: 1.5px solid var(--success-border); border-radius: 8px; padding: 11px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .totaal-balk .t-label { font-size: 13px; font-weight: 600; color: var(--success-text); }
+    .totaal-balk .t-waarde { font-size: 18px; font-weight: 700; color: var(--success-text); }
+
+    /* RITTENLIJST */
+    .rit-item { background: white; border: 1.5px solid var(--border); border-left: 4px solid var(--tertiary); border-radius: 8px; padding: 11px 13px; margin-bottom: 8px; }
+    .rit-item.woonwerk { border-left-color: var(--quaternary); }
+    .rit-item.dienst   { border-left-color: var(--secondary); }
+    .rit-item.in-bewerk { background: #fffbeb; border-color: #fbbf24; }
+    .rit-hoofd-rij { display: flex; align-items: flex-start; gap: 10px; }
+    .rit-info { flex: 1; min-width: 0; }
+    .rit-datum { font-size: 11px; color: #64748b; }
+    .rit-hoofd { font-size: 14px; font-weight: 600; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rit-sub   { font-size: 12px; color: #64748b; }
+    .rit-acties { display: flex; gap: 4px; flex-shrink: 0; }
+    .icon-btn { background: none; border: none; cursor: pointer; padding: 5px 7px; border-radius: 6px; font-size: 15px; transition: background .15s; line-height: 1; }
+    .icon-btn:hover { background: #f1f5f9; }
+    .icon-btn.del:hover { background: #fee2e2; }
+
+    /* BEWIJS-PREVIEW IN LIJST */
+    .rit-bewijs-wrap { margin-top: 8px; }
+    .rit-bewijs-inline { display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0 8px; gap: 3px; }
+    .rit-bewijs-inline img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1.5px solid var(--border); cursor: zoom-in; }
+    .rit-bewijs-inline .ontbreekt-badge { font-size: 15px; padding: 4px 6px; }
+    .rit-bewijs-thumb {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 10px;
+      font-size: 12px; color: #475569; text-decoration: none;
+      max-width: 100%;
+    }
+    .rit-bewijs-thumb img {
+      width: 36px; height: 36px; object-fit: cover; border-radius: 5px;
+      border: 1px solid var(--border); flex-shrink: 0;
+      cursor: pointer;
+    }
+    .rit-bewijs-thumb .bewijs-label { font-size: 11px; color: #64748b; line-height: 1.3; }
+    .bewijs-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 99px;
+      padding: 4px 11px; font-size: 11px; font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      cursor: pointer; margin-top: 4px;
+      text-decoration: none; transition: background .2s;
+    }
+    .bewijs-chip:hover { background: #1a1c40; }
+.hover-popup {
+  display: none; position: fixed; z-index: 1000;
+  background: white; border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  padding: 8px; pointer-events: none;
+  width: min(480px, 86vw);
+  height: min(660px, 82vh);
+}
+.hover-popup img {
+  width: 100%; height: 100%; display: block; border-radius: 7px;
+  object-fit: contain; background: #f8fafc;
+}
+.hover-popup.zichtbaar { display: block; }
+    .ontbreekt-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #fff1f2; border: 1px solid #fda4af;
+      border-radius: 6px; padding: 4px 10px;
+      font-size: 11px; color: var(--danger); font-weight: 600;
+    }
+
+    /* TOEVOEG/BEWERK FORMULIER */
+    .toevoeg-form { background: #f8fafc; border: 1.5px dashed var(--border); border-radius: 10px; padding: 16px; margin-top: 14px; }
+    .toevoeg-form h3 { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--primary); }
+
+    /* UPLOAD ZONE */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 8px;
+      padding: 14px 12px; cursor: pointer; transition: all .2s;
+      background: white; text-align: center;
+    }
+    .upload-zone:hover { border-color: var(--quaternary); background: #f0fdfa; }
+    .upload-zone.heeft-bestand { border-color: var(--success-border); background: var(--success-bg); border-style: solid; }
+    .upload-zone.heeft-bestand:hover { border-color: #4ade80; }
+    .upload-placeholder { color: #94a3b8; font-size: 13px; line-height: 1.5; }
+    .upload-placeholder .upload-icoon { font-size: 22px; display: block; margin-bottom: 4px; }
+    .upload-preview { display: none; }
+    .upload-preview.zichtbaar { display: block; }
+    .upload-preview img {
+      max-width: 100%; max-height: 160px; border-radius: 8px;
+      border: 1px solid var(--border); object-fit: contain;
+      display: block; margin: 0 auto 6px;
+    }
+    .upload-preview .bestand-naam { font-size: 12px; color: #475569; text-align: center; }
+    .upload-thumb-wrap { position: relative; display: inline-block; margin-bottom: 6px; }
+    .upload-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1.5px solid var(--border); cursor: zoom-in; display: block; }
+    .upload-thumb-pdf { width: 64px; height: 64px; border-radius: 8px; border: 1.5px solid var(--border); background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .upload-preview .bestand-naam strong { color: var(--primary); }
+    .upload-vervang { font-size: 11px; color: var(--quaternary); text-align: center; margin-top: 6px; cursor: pointer; text-decoration: underline; display: block; }
+    .upload-preview-wrap { position: relative; display: inline-block; width: 100%; }
+    .upload-verwijder { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--danger); border: 2px solid white; color: white; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: background .2s; padding: 0; font-family: sans-serif; }
+    .upload-verwijder:hover { background: #b71c1c; }
+
+    /* BESTAAND BEWIJS (bij bewerken) */
+    .bestaand-bewijs-wrap { margin-bottom: 8px; }
+    .bestaand-bewijs-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+    .bestaand-bewijs-thumb {
+      display: flex; align-items: center; gap: 10px;
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 8px; padding: 8px 12px;
+    }
+    .bestaand-bewijs-thumb img { width: 52px; height: 52px; object-fit: cover; border-radius: 5px; border: 1px solid #bfdbfe; }
+    .bestaand-bewijs-thumb .bd-tekst { font-size: 12px; color: #1e40af; line-height: 1.4; }
+    .bestaand-bewijs-thumb .bd-link { font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+    /* LIGHTBOX */
+    .lightbox-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.82); z-index: 9999;
+      align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .lightbox-overlay.open { display: flex; }
+    .lightbox-overlay img {
+      max-width:    min(756px, 95vw);
+      max-height:   min(756px, 92vh);
+      width:  auto;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      object-fit: contain;
+    }
+    @media (max-width: 600px) {
+      .lightbox-overlay img {
+        max-width:  98vw;
+        max-height: 94vh;
+      }
+    }
+    .lightbox-sluit {
+      position: absolute; top: 14px; right: 18px;
+      background: rgba(255,255,255,.15); border: none; color: white;
+      font-size: 22px; width: 38px; height: 38px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-family: sans-serif; line-height: 1;
+    }
+
+    /* UPLOAD VOORTGANG */
+    .upload-voortgang {
+      display: none; background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 8px; padding: 10px 14px; margin-top: 8px;
+      font-size: 12px; color: #1e40af; align-items: center; gap: 8px;
+    }
+    .upload-voortgang.zichtbaar { display: flex; }
+    .upload-voortgang .mini-spinner {
+      width: 16px; height: 16px; border: 2px solid #bfdbfe;
+      border-top-color: #3b82f6; border-radius: 50%;
+      animation: spin .6s linear infinite; flex-shrink: 0;
+    }
+
+    /* MISC */
+    .sectie-titel { font-size: 16px; font-weight: 700; color: var(--primary); margin: 0 0 14px; }
+    .sub-tekst { font-size: 13px; color: #64748b; margin: 0 0 18px; }
+    .naam-badge { display: inline-flex; align-items: center; gap: 6px; background: #ede9fe; color: #5b21b6; padding: 4px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; margin-bottom: 18px; }
+    .terug-link { background: none; border: none; color: #64748b; font-family: 'Poppins', sans-serif; font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; margin-bottom: 14px; display: block; text-align: left; }
+    .terug-link:hover { color: var(--primary); }
+    .gegevens-link { text-align: center; margin-top: 18px; }
+    .gegevens-link button { background: none; border: none; font-family: 'Poppins', sans-serif; font-size: 12px; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: color .2s, background .2s; }
+    .gegevens-link button:hover { color: #5b21b6; background: #ede9fe; }
+
+    /* ─── JAAR SCHAKELAAR ─── */
+    .jaar-schakelaar { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:14px; }
+    .jaar-btn { background:white; border:1.5px solid var(--border); border-radius:6px; padding:2px 13px; font-size:17px; line-height:1.5; cursor:pointer; color:var(--primary); transition: background .15s, border-color .15s; }
+    .jaar-btn:hover:not(:disabled) { background:#f1f5f9; border-color:#94a3b8; }
+    .jaar-btn:disabled { color:#cbd5e1; cursor:default; }
+    .jaar-label { font-size:15px; font-weight:700; color:var(--primary); min-width:38px; text-align:center; }
+    .leesonly-banner { display:none; background:#f1f5f9; border:1.5px solid #e2e8f0; border-radius:8px; padding:10px 14px; font-size:12px; color:#64748b; margin-bottom:14px; text-align:center; }
+    .leeg-tekst { text-align: center; color: #94a3b8; font-size: 13px; padding: 22px 0; font-style: italic; }
+    .lijst-sectie-titel {
+      display: flex; align-items: center; gap: 10px;
+      margin: 22px 0 12px; font-size: 11px; font-weight: 700;
+      color: #64748b; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .lijst-sectie-titel::before, .lijst-sectie-titel::after {
+      content: ''; flex: 1; height: 1.5px; background: var(--success-border);
+    }
+    .error-box { background: #fff1f2; border: 1.5px solid #fda4af; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--danger); margin-bottom: 14px; }
+    .info-box  { background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #1e40af; margin-bottom: 14px; }
+    hr.sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+    .upload-tip { font-size:11px; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 10px; margin-bottom:8px; }
+    .kw-indicator { display:none; margin-top:6px; padding:6px 11px; border-radius:6px; font-size:12px; font-weight:600; }
+    .kw-indicator.open { display:block; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+    .kw-indicator.overgang { display:block; background:#fef3c7; border:1px solid #fcd34d; color:#92400e; }
+    .kw-indicator.gesloten { display:block; background:#fff1f2; border:1px solid #fda4af; color:var(--danger); }
+
+    /* ─── CUSTOM MAANDKIEZER ─── */
+    .maand-picker { position: relative; }
+    .maand-trigger {
+      width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: 'Poppins', sans-serif; font-size: 14px; color: var(--text);
+      background: var(--bg); transition: border-color .2s;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; text-align: left;
+    }
+    .maand-trigger:hover, .maand-trigger.open { border-color: var(--quaternary); background: white; outline: none; }
+    .maand-trigger .maand-placeholder { color: #94a3b8; }
+    .maand-trigger .maand-pijl { font-size: 11px; color: #94a3b8; transition: transform .2s; }
+    .maand-trigger.open .maand-pijl { transform: rotate(180deg); }
+    .maand-dropdown {
+      display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: white; border: 1.5px solid var(--border); border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(38,41,90,.13); z-index: 200; overflow: hidden;
+    }
+    .maand-sectie {
+      padding: 6px 14px 5px; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; color: #94a3b8;
+      background: #f8fafc; border-bottom: 1px solid var(--border);
+    }
+    .maand-optie {
+      padding: 10px 16px; cursor: pointer; font-size: 13px;
+      font-family: 'Poppins', sans-serif; display: flex; align-items: center;
+      gap: 8px; color: var(--text); border-bottom: 1px solid #f1f5f9;
+      transition: background .12s;
+    }
+    .maand-optie:last-of-type { border-bottom: none; }
+    .maand-optie:hover:not(.afgesloten) { background: #f0fdfa; }
+    .maand-optie.geselecteerd { background: #eff6ff; color: var(--primary); font-weight: 700; }
+    .maand-optie.afgesloten { color: #94a3b8; }
+    .maand-optie.afgesloten:hover { background: #fff1f2; cursor: default; }
+    .maand-slot-melding {
+      display: none; padding: 10px 14px; background: #fff1f2;
+      border-top: 1.5px solid #fda4af; font-size: 12px; color: var(--danger);
+      font-family: 'Poppins', sans-serif;
+    }
+
+    @media (max-width: 420px) {
+      .form-row { flex-direction: column; }
+      .ja-nee-row { flex-direction: column; }
+    }
+
+    /* ─── MOBILE ─── */
+    @media (max-width: 768px) {
+      /* Voorkomt iOS auto-zoom bij focus op input (vereist min. 16px) */
+      input[type="text"], input[type="date"], input[type="number"], select { font-size: 16px; }
+      .maand-trigger { font-size: 16px; }
+      /* Grotere aanraakoppervlakken voor kleine knoppen */
+      .icon-btn { padding: 8px 10px; font-size: 17px; }
+      .jaar-btn { padding: 6px 16px; font-size: 19px; }
+      .kw-tab   { padding: 10px 4px; }
+    }
+
+    /* ─── TOAST BEVESTIGING ─── */
+    .toast-melding {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #15803d; color: white;
+      padding: 13px 28px; border-radius: 10px;
+      font-size: 15px; font-weight: 700;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      z-index: 99999; opacity: 0; pointer-events: none;
+      transition: opacity .3s, transform .3s;
+      white-space: nowrap;
+    }
+    .toast-melding.zichtbaar {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div id="hover-popup" class="hover-popup"><img id="hover-popup-img" src="" alt="Preview"></div>
+  <div id="toast-melding" class="toast-melding"></div>
+<!-- LIGHTBOX -->
+  <div class="lightbox-overlay" id="lightbox" onclick="sluitLightbox(event)">
+    <button class="lightbox-sluit" onclick="sluitLightbox()">✕</button>
+    <img id="lightbox-img" src="" alt="Bewijs">
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="label">Academie Ieper</div>
+    <h1>Terugbetaling Woon-Werkverkeer</h1>
+    <div class="rainbow"><div class="r1"></div><div class="r2"></div><div class="r3"></div><div class="r4"></div></div>
+  </div>
+
+  <!-- Kwartaalbanner -->
+  <div id="kwartaal-banner" style="display:none;border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:8px;"></div>
+
+  <div class="card">
+
+    <!-- ══ LADEN ══ -->
+    <div id="screen-laden" class="screen aktief">
+      <div class="spinner-wrap">
+        <div class="spinner"></div>
+        <span>Gegevens worden geladen…</span>
+      </div>
+    </div>
+
+    <!-- ══ FOUT ══ -->
+    <div id="screen-fout" class="screen">
+      <div class="error-box" id="fout-bericht"></div>
+    </div>
+
+    <!-- ══ PERSOONSGEGEVENS ══ -->
+    <div id="screen-persoon" class="screen">
+      <p class="sectie-titel">👤 Jouw gegevens</p>
+      <p class="sub-tekst" id="persoon-intro">Controleer je gegevens hieronder.</p>
+
+      <div class="form-group">
+        <label class="field-label">Naam</label>
+        <input type="text" id="p-naam" placeholder="Familienaam Voornaam" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Adres</label>
+        <input type="text" id="p-adres" placeholder="Straat en huisnummer" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 90px">
+          <label class="field-label">Postcode</label>
+          <input type="text" id="p-postcode" placeholder="8900" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="field-label">Gemeente</label>
+          <input type="text" id="p-gemeente" placeholder="Ieper" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Domein</label>
+        <input type="text" id="p-domein-display" readonly style="display:none">
+        <select id="p-domein" style="display:none" onchange="var w=document.getElementById('p-domein-waarschuwing');this.style.borderColor=this.value?'':'#d97706';w.style.display=this.value?'none':'';">
+          <option value="">Kies een domein…</option>
+          <option value="Beleid">Beleid</option>
+          <option value="Beeld">Beeld</option>
+          <option value="Muziek">Muziek</option>
+          <option value="Woord">Woord</option>
+          <option value="Kunstkuur">Kunstkuur</option>
+        </select>
+        <p id="p-domein-waarschuwing" style="display:none;font-size:12px;color:#d97706;font-weight:600;margin:5px 0 0;">⚠️ Vereist veld.</p>
+      </div>
+      <div class="form-group">
+        <label class="field-label">IBAN-rekeningnummer</label>
+        <input type="text" id="p-iban" placeholder="BE12 3456 7890 1234" autocomplete="off" maxlength="19" oninput="formatIBAN(this)" onblur="formatIBAN(this);toonIBANFout_()">
+        <p id="p-iban-fout" style="display:none;font-size:12px;color:#d97706;font-weight:600;margin:5px 0 0;">&#9888; Ongeldig IBAN-nummer. Controleer het rekeningnummer (bv. BE68 5390 0754 7034).</p>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Rijksregisternummer</label>
+        <input type="text" id="p-rijksreg" placeholder="00.00.00-000.00" autocomplete="off" maxlength="15" oninput="formatRijksreg(this)">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Privé e-mailadres (vb. voor gebruik Doccle)</label>
+        <input type="text" id="p-priveemail" placeholder="voornaam@example.com" autocomplete="off">
+      </div>
+
+      <!-- Adreswijziging datum (verborgen tenzij adres veranderd) -->
+      <div id="p-adreswijziging-wrap" style="display:none;" class="form-group">
+        <div class="info-box" style="margin-bottom:8px;">📍 Je adres is gewijzigd. Geef de ingangsdatum in:</div>
+        <label class="field-label">Ingangsdatum nieuw adres</label>
+        <input type="date" id="p-adreswijziging-datum" min="2000-01-01" max="2099-12-31">
+      </div>
+
+      <p id="p-fout" class="form-fout"></p>
+      <hr class="sep">
+      <p style="font-size:14px;font-weight:600;color:var(--primary);margin:0 0 4px;">Zijn bovenstaande gegevens correct?</p>
+      <div class="ja-nee-row">
+        <button class="btn-ja" id="btn-ja" onclick="bevestigPersoon(true)">✓ Ja, correct</button>
+        <button class="btn-nee" id="btn-nee" onclick="bevestigPersoon(false)">✎ Nee, aanpassen</button>
+      </div>
+    </div>
+
+    <!-- ══ CATEGORIE ══ -->
+    <div id="screen-categorie" class="screen">
+      <div class="naam-badge" id="badge-categorie">👤 …</div>
+      <p class="sectie-titel">Wat wil je aanvragen?</p>
+      <div class="cat-grid">
+        <button class="cat-btn fiets" onclick="kiesCategorie('fiets')">
+          <span class="emoji">🚴</span>
+          <div class="cat-titel">Fietsvergoeding</div>
+          <div class="cat-sub">Registreer je fietsritten per kwartaal</div>
+        </button>
+        <button class="cat-btn woonwerk" onclick="kiesCategorie('woonwerk')">
+          <span class="emoji">🚆</span>
+          <div class="cat-titel">Woon-Werk (trein/bus)</div>
+          <div class="cat-sub">Verplaatsingskosten naar het werk</div>
+        </button>
+        <button class="cat-btn dienst" onclick="kiesCategorie('dienst')">
+          <span class="emoji">🚗</span>
+          <div class="cat-titel">Dienstverplaatsing</div>
+          <div class="cat-sub">Verplaatsingen in dienstverband</div>
+        </button>
+      </div>
+      <div class="gegevens-link">
+        <button onclick="toonScherm('screen-persoon')">👤 Mijn persoonsgegevens bekijken of aanpassen</button>
+      </div>
+    </div>
+
+    <!-- ══ FIETSVERGOEDING ══ -->
+    <div id="screen-fiets" class="screen">
+      <button class="terug-link" onclick="toonScherm('screen-categorie')">← Terug</button>
+      <div class="naam-badge" id="badge-fiets">👤 …</div>
+      <p class="sectie-titel">🚴 Fietsvergoeding</p>
+
+      <div class="jaar-schakelaar">
+        <button class="jaar-btn" id="fiets-jaar-vorige" onclick="navigeerJaar('fiets',-1)">‹</button>
+        <span class="jaar-label" id="fiets-jaar-label">—</span>
+        <button class="jaar-btn" id="fiets-jaar-volgende" onclick="navigeerJaar('fiets',1)" disabled>›</button>
+      </div>
+
+      <div class="kwartaal-tabs">
+        <button class="kw-tab" data-kw="1" onclick="selecteerKwartaal('fiets',1)">Kwartaal 1<span class="kw-sub">jan–mrt</span></button>
+        <button class="kw-tab" data-kw="2" onclick="selecteerKwartaal('fiets',2)">Kwartaal 2<span class="kw-sub">apr–jun</span></button>
+        <button class="kw-tab" data-kw="3" onclick="selecteerKwartaal('fiets',3)">Kwartaal 3<span class="kw-sub">jul–sep</span></button>
+        <button class="kw-tab" data-kw="4" onclick="selecteerKwartaal('fiets',4)">Kwartaal 4<span class="kw-sub">okt–dec</span></button>
+      </div>
+
+      <div class="totaal-balk">
+        <span class="t-label">Totaal dit kwartaal</span>
+        <span class="t-waarde" id="fiets-totaal">0 km</span>
+      </div>
+      <div class="leesonly-banner" id="fiets-leesonly-banner">🔒 Afgesloten kwartaal — je kan je ingediende gegevens enkel raadplegen.</div>
+
+      <div class="toevoeg-form" id="fiets-form">
+        <h3 id="fiets-form-titel">➕ Fietsverplaatsing toevoegen</h3>
+        <input type="hidden" id="fiets-edit-id">
+        <input type="hidden" id="fiets-edit-rij">
+        <div class="form-group">
+          <label class="field-label">Maand</label>
+          <div class="maand-picker" id="fiets-maand-picker">
+            <button type="button" class="maand-trigger" id="fiets-maand-trigger" onclick="toggleMaandPicker('fiets')">
+              <span id="fiets-maand-label" class="maand-placeholder">Kies een maand…</span>
+              <span class="maand-pijl">▾</span>
+            </button>
+            <div class="maand-dropdown" id="fiets-maand-dropdown">
+              <div id="fiets-maand-lijst"></div>
+              <div class="maand-slot-melding" id="fiets-maand-melding"></div>
+            </div>
+          </div>
+          <input type="hidden" id="fiets-maand">
+          <div class="kw-indicator" id="fiets-kw-indicator"></div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Vertrekpunt – Bestemming</label>
+          <input type="text" id="fiets-bestemming" placeholder="Thuis - Welke vestiging" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="field-label">Aantal km (retour)</label>
+          <input type="number" id="fiets-km" min="0" step="0.5" placeholder="Bv. 12.5">
+        </div>
+        <!-- BEWIJS -->
+        <div class="form-group">
+          <label class="field-label">Bewijs (Foto / JPEG / PDF / Worddoc)</label>
+          <div id="fiets-bestaand-bewijs" class="bestaand-bewijs-wrap" style="display:none"></div>
+          <div class="upload-zone" id="fiets-upload-zone" onclick="document.getElementById('fiets-bestand').click()">
+            <input type="file" id="fiets-bestand" accept="image/*,.pdf" style="display:none" onchange="toonLocalPreview('fiets', this)">
+            <div class="upload-placeholder" id="fiets-upload-placeholder">
+              <span class="upload-icoon">📎</span>
+              Klik om een foto of PDF toe te voegen
+            </div>
+            <div class="upload-preview" id="fiets-upload-preview"></div>
+          </div>
+          <div class="upload-voortgang" id="fiets-upload-voortgang">
+            <div class="mini-spinner"></div>
+            <span id="fiets-upload-tekst">Bewijs uploaden naar Drive…</span>
+          </div>
+        </div>
+        <p id="fiets-fout" class="form-fout"></p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="fiets-opslaan-btn" onclick="slaFietsOp()" style="font-size:13px;">✓ Rit opslaan</button>
+          <button class="btn btn-outline btn-sm" id="fiets-annuleer-btn" onclick="annuleerBewerk('fiets')" style="display:none">Annuleer</button>
+        </div>
+      </div>
+
+      <div class="lijst-sectie-titel">Ingediende ritten dit kwartaal</div>
+      <div id="fiets-lijst"></div>
+    </div>
+
+    <!-- ══ WOON-WERK ══ -->
+    <div id="screen-woonwerk" class="screen">
+      <button class="terug-link" onclick="toonScherm('screen-categorie')">← Terug</button>
+      <div class="naam-badge" id="badge-woonwerk">👤 …</div>
+      <p class="sectie-titel">🚆 Woon-Werk (trein/bus)</p>
+
+      <div class="jaar-schakelaar">
+        <button class="jaar-btn" id="woonwerk-jaar-vorige" onclick="navigeerJaar('woonwerk',-1)">‹</button>
+        <span class="jaar-label" id="woonwerk-jaar-label">—</span>
+        <button class="jaar-btn" id="woonwerk-jaar-volgende" onclick="navigeerJaar('woonwerk',1)" disabled>›</button>
+      </div>
+
+      <div class="kwartaal-tabs">
+        <button class="kw-tab" data-kw="1" onclick="selecteerKwartaal('woonwerk',1)">Kwartaal 1<span class="kw-sub">jan–mrt</span></button>
+        <button class="kw-tab" data-kw="2" onclick="selecteerKwartaal('woonwerk',2)">Kwartaal 2<span class="kw-sub">apr–jun</span></button>
+        <button class="kw-tab" data-kw="3" onclick="selecteerKwartaal('woonwerk',3)">Kwartaal 3<span class="kw-sub">jul–sep</span></button>
+        <button class="kw-tab" data-kw="4" onclick="selecteerKwartaal('woonwerk',4)">Kwartaal 4<span class="kw-sub">okt–dec</span></button>
+      </div>
+
+      <div class="totaal-balk">
+        <span class="t-label">Totaal dit kwartaal</span>
+        <span class="t-waarde" id="woonwerk-totaal">€ 0,00</span>
+      </div>
+      <div class="leesonly-banner" id="woonwerk-leesonly-banner">🔒 Afgesloten kwartaal — je kan je ingediende gegevens enkel raadplegen.</div>
+
+      <div class="toevoeg-form" id="ww-form">
+        <h3 id="ww-form-titel">➕ Verplaatsing toevoegen</h3>
+        <input type="hidden" id="ww-edit-id">
+        <input type="hidden" id="ww-edit-rij">
+        <div class="form-group">
+          <label class="field-label">Maand</label>
+          <div class="maand-picker" id="ww-maand-picker">
+            <button type="button" class="maand-trigger" id="ww-maand-trigger" onclick="toggleMaandPicker('woonwerk')">
+              <span id="ww-maand-label" class="maand-placeholder">Kies een maand…</span>
+              <span class="maand-pijl">▾</span>
+            </button>
+            <div class="maand-dropdown" id="ww-maand-dropdown">
+              <div id="ww-maand-lijst"></div>
+              <div class="maand-slot-melding" id="ww-maand-melding"></div>
+            </div>
+          </div>
+          <input type="hidden" id="ww-maand">
+          <div class="kw-indicator" id="woonwerk-kw-indicator"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="field-label">Retour tussen</label>
+            <input type="text" id="ww-van" placeholder="Bv. Menen" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="field-label">En</label>
+            <input type="text" id="ww-naar" placeholder="Bv. Ieper" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Vervoer</label>
+          <select id="ww-vervoer">
+            <option value="">Kies...</option>
+            <option value="Trein">Trein</option>
+            <option value="De Lijn">De Lijn</option>
+            <option value="Trein + De Lijn">Trein + De Lijn</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Bedrag (€)</label>
+          <input type="number" id="ww-bedrag" min="0" step="0.01" placeholder="Bv. 45.00">
+        </div>
+        <!-- BEWIJS (meerdere bestanden) -->
+        <div class="form-group">
+          <label class="field-label">Bewijs(en) <span class="optioneel">max. 4 bestanden</span></label>
+          <div class="upload-tip">&#128161; Max. 4 tickets per foto voor betere leesbaarheid voor de controle</div>
+          <div id="ww-bestaand-bewijs" class="bestaand-bewijs-wrap" style="display:none"></div>
+          <div class="upload-zone" id="ww-upload-zone" onclick="document.getElementById('ww-bestand').click()">
+            <input type="file" id="ww-bestand" accept="image/*,.pdf" multiple style="display:none" onchange="toonWwMultiPreview_(this)">
+            <div class="upload-placeholder" id="ww-upload-placeholder">
+              <span class="upload-icoon">&#128206;</span>
+              Klik om bestanden te kiezen (max. 4 — houd Ctrl ingedrukt voor meerdere)
+            </div>
+            <div class="upload-preview" id="ww-upload-preview"></div>
+          </div>
+          <div class="upload-voortgang" id="ww-upload-voortgang">
+            <div class="mini-spinner"></div>
+            <span id="ww-upload-tekst">Bewijzen uploaden naar Drive…</span>
+          </div>
+        </div>
+        <p id="ww-fout" class="form-fout"></p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="slaWoonwerkOp()" style="font-size:13px;" id="ww-opslaan-btn">✓ Opslaan</button>
+          <button class="btn btn-outline btn-sm" id="ww-annuleer-btn" onclick="annuleerBewerk('woonwerk')" style="display:none">Annuleer</button>
+        </div>
+      </div>
+
+      <div class="lijst-sectie-titel">Ingediende ritten dit kwartaal</div>
+      <div id="woonwerk-lijst"></div>
+    </div>
+
+    <!-- ══ DIENSTVERPLAATSING ══ -->
+    <div id="screen-dienst" class="screen">
+      <button class="terug-link" onclick="toonScherm('screen-categorie')">← Terug</button>
+      <div class="naam-badge" id="badge-dienst">👤 …</div>
+      <p class="sectie-titel">🚗 Dienstverplaatsing</p>
+
+      <div class="jaar-schakelaar">
+        <button class="jaar-btn" id="dienst-jaar-vorige" onclick="navigeerJaar('dienst',-1)">‹</button>
+        <span class="jaar-label" id="dienst-jaar-label">—</span>
+        <button class="jaar-btn" id="dienst-jaar-volgende" onclick="navigeerJaar('dienst',1)" disabled>›</button>
+      </div>
+
+      <div class="kwartaal-tabs">
+        <button class="kw-tab" data-kw="1" onclick="selecteerKwartaal('dienst',1)">Kwartaal 1<span class="kw-sub">jan–mrt</span></button>
+        <button class="kw-tab" data-kw="2" onclick="selecteerKwartaal('dienst',2)">Kwartaal 2<span class="kw-sub">apr–jun</span></button>
+        <button class="kw-tab" data-kw="3" onclick="selecteerKwartaal('dienst',3)">Kwartaal 3<span class="kw-sub">jul–sep</span></button>
+        <button class="kw-tab" data-kw="4" onclick="selecteerKwartaal('dienst',4)">Kwartaal 4<span class="kw-sub">okt–dec</span></button>
+      </div>
+
+      <div class="totaal-balk">
+        <span class="t-label">Totaal dit kwartaal</span>
+        <span class="t-waarde" id="dienst-totaal">0 km</span>
+      </div>
+      <div class="leesonly-banner" id="dienst-leesonly-banner">🔒 Afgesloten kwartaal — je kan je ingediende gegevens enkel raadplegen.</div>
+
+      <div class="toevoeg-form" id="d-form">
+        <h3 id="d-form-titel">➕ Dienstverplaatsing toevoegen</h3>
+        <input type="hidden" id="d-edit-id">
+        <input type="hidden" id="d-edit-rij">
+        <div class="form-group">
+          <label class="field-label">Datum</label>
+          <input type="date" id="d-datum" min="2000-01-01" max="2099-12-31" onchange="valideerDatum(this,'dienst')">
+          <div class="kw-indicator" id="dienst-kw-indicator"></div>
+        </div>
+        <div class="form-group">
+          <label class="field-label">Vertrekpunt – Bestemming</label>
+          <input type="text" id="d-bestemming" placeholder="Bv. Academie – Concertgebouw Brugge" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="field-label">Doel / activiteit</label>
+          <input type="text" id="d-doel" placeholder="Bv. Studiebezoek schilderkunst" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="field-label">Aantal km (retour)</label>
+          <input type="number" id="d-km" min="0" step="0.5" placeholder="Bv. 45">
+        </div>
+        <!-- PARKEERTICKET -->
+        <div class="form-group">
+          <label class="field-label">Parkeerticket</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-family:'Poppins',sans-serif;font-weight:400;">
+            <input type="checkbox" id="d-parkeerticket" onchange="toggleDienstBewijs()">
+            Ik heb een parkeerticket
+          </label>
+        </div>
+        <!-- BEWIJS (verborgen tenzij parkeerticket aangevinkt) -->
+        <div class="form-group" id="d-bewijs-wrap" style="display:none">
+          <div class="form-group">
+            <label class="field-label">Bedrag parkeerticket (€)</label>
+            <input type="number" id="d-parkeer-bedrag" min="0" step="0.01" placeholder="Bv. 3.50">
+          </div>
+          <label class="field-label">Bewijs</label>
+          <div id="d-bestaand-bewijs" class="bestaand-bewijs-wrap" style="display:none"></div>
+          <div class="upload-zone" id="d-upload-zone" onclick="document.getElementById('d-bestand').click()">
+            <input type="file" id="d-bestand" accept="image/*,.pdf" style="display:none" onchange="toonLocalPreview('dienst', this)">
+            <div class="upload-placeholder" id="d-upload-placeholder">
+              <span class="upload-icoon">📎</span>
+              Klik om een foto of PDF toe te voegen
+            </div>
+            <div class="upload-preview" id="d-upload-preview"></div>
+          </div>
+          <div class="upload-voortgang" id="d-upload-voortgang">
+            <div class="mini-spinner"></div>
+            <span id="d-upload-tekst">Bewijs uploaden naar Drive…</span>
+          </div>
+        </div>
+        <p id="d-fout" class="form-fout"></p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sladienstOp()" style="font-size:13px;" id="d-opslaan-btn">✓ Opslaan</button>
+          <button class="btn btn-outline btn-sm" id="d-annuleer-btn" onclick="annuleerBewerk('dienst')" style="display:none">Annuleer</button>
+        </div>
+      </div>
+
+      <div class="lijst-sectie-titel">Ingediende verplaatsingen dit kwartaal</div>
+      <div id="dienst-lijst"></div>
+    </div>
+
+  </div><!-- /card -->
+</div><!-- /container -->
+
+<script>
+// Worden ingevuld via getDriveUploadConfig() bij het laden van de pagina.
+var DRIVE_OAUTH_TOKEN   = '';
+var DRIVE_MAP_ID_FOLDER = '';
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+var S = {
+  email: '', naam: '', jaar: new Date().getFullYear(), weergaveJaar: null,
+  huidigKw:    { fiets: 1, woonwerk: 1, dienst: 1 },
+  ritten:      { fiets: [], woonwerk: [], dienst: [] },
+  kwartaalInfo: null,
+};
+
+var rittenCache = {};
+function cacheSleutel_(kat) { return kat + '|' + (S.weergaveJaar || S.jaar) + '|' + S.huidigKw[kat]; }
+
+var isNieuwePersoon      = false;
+var wasBewerkt           = false;
+var origineelePersoonData = null;
+
+// Upload-state per categorie
+var uploadState = {
+  fiets:    { file: null, dataUrl: null },
+  woonwerk: [],
+  dienst:   { file: null, dataUrl: null },
+};
+var lastFietsBestemming = localStorage.getItem('lk_fiets_best') || '';
+var lastWwVan     = localStorage.getItem('lk_ww_van')     || '';
+var lastWwNaar    = localStorage.getItem('lk_ww_naar')    || '';
+var lastWwVervoer = localStorage.getItem('lk_ww_vervoer') || '';
+
+function toonFormFout_(id, msg) {
+  var el = document.getElementById(id);
+  if (!el) { alert(msg); return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function verbergFormFout_(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+(function init() {
+  var vandaag = new Date();
+  var d = vandaag.toISOString().split('T')[0];
+  var elDatum = document.getElementById('d-datum');
+  elDatum.value = d;
+  elDatum.min = '2000-01-01';
+  elDatum.max = '2099-12-31';
+  var m = vandaag.getMonth() + 1;
+  var kw = m <= 3 ? 1 : m <= 6 ? 2 : m <= 9 ? 3 : 4;
+  S.huidigKw = { fiets: kw, woonwerk: kw, dienst: kw };
+  S.jaar = vandaag.getFullYear();
+
+  google.script.run
+    .withSuccessHandler(onUserData)
+    .withFailureHandler(onFout)
+    .getUserData();
+
+  google.script.run
+    .withSuccessHandler(function(cfg) {
+      if (cfg && cfg.token)    DRIVE_OAUTH_TOKEN   = cfg.token;
+      if (cfg && cfg.folderId) DRIVE_MAP_ID_FOLDER = cfg.folderId;
+    })
+    .getDriveUploadConfig();
+})();
+
+function onUserData(r) {
+  if (r.error) { toonFout(r.error); return; }
+  S.email       = r.email;
+  S.jaar        = r.jaar;
+  S.weergaveJaar = r.jaar;
+  S.kwartaalInfo = r.kwartaalInfo || null;
+  S.huidigKw    = { fiets: r.kwartaal, woonwerk: r.kwartaal, dienst: r.kwartaal };
+
+  if (r.personData) {
+    isNieuwePersoon       = false;
+    origineelePersoonData = r.personData;
+    S.naam = r.personData.naam;
+    vulPersoonIn(r.personData, true);
+    document.getElementById('persoon-intro').textContent = 'Controleer je gegevens en bevestig.';
+  } else {
+    isNieuwePersoon       = true;
+    origineelePersoonData = null;
+    document.getElementById('persoon-intro').textContent = 'Je bent nog niet gekend. Vul je gegevens in.';
+    vulPersoonIn({ naam: r.naamSuggestie || '' }, false);
+  }
+  wasBewerkt = false;
+  toonScherm('screen-persoon');
+  toonKwartaalBanner();
+
+  // Prefetch ritten op achtergrond zodat de categorieënlijst instant laadt
+  if (r.personData) {
+    var _pj = r.jaar, _pk = r.kwartaal;
+    google.script.run
+      .withSuccessHandler(function(alle) {
+        if (!alle) return;
+        ['fiets','woonwerk','dienst'].forEach(function(kat) {
+          if (alle[kat]) rittenCache[kat + '|' + _pj + '|' + _pk] = alle[kat];
+        });
+      })
+      .withFailureHandler(function(){})
+      .getRittenAlle(_pj, _pk);
+  }
+}
+
+// ── PERSOONSGEGEVENS ───────────────────────────────────────────────────────────
+function vulPersoonIn(d, readonly) {
+  var setVal = function(id, v) { document.getElementById(id).value = v || ''; };
+  var domein      = d.domein || '';
+  var display     = document.getElementById('p-domein-display');
+  var select      = document.getElementById('p-domein');
+  var waarschuwing = document.getElementById('p-domein-waarschuwing');
+  display.value = domein;
+  select.value  = domein;
+  if (readonly && domein) {
+    display.style.display      = '';
+    select.style.display       = 'none';
+    waarschuwing.style.display = 'none';
+  } else {
+    display.style.display      = 'none';
+    select.style.display       = '';
+    select.style.borderColor   = domein ? '' : '#d97706';
+    waarschuwing.style.display = domein ? 'none' : '';
+  }
+  setVal('p-naam', d.naam);
+  setVal('p-adres', d.adres);
+  if (d.postcodeGem) {
+    var idx = d.postcodeGem.indexOf(' ');
+    setVal('p-postcode', idx > 0 ? d.postcodeGem.substring(0, idx) : d.postcodeGem);
+    setVal('p-gemeente', idx > 0 ? d.postcodeGem.substring(idx + 1) : '');
+  }
+  setVal('p-iban', d.iban);
+  formatIBAN(document.getElementById('p-iban'));
+  setVal('p-rijksreg', d.rijksregisternummer);
+  setVal('p-priveemail', d.priveEmail);
+  ['p-naam','p-adres','p-postcode','p-gemeente','p-iban','p-rijksreg','p-priveemail'].forEach(function(id){
+    document.getElementById(id).readOnly = readonly;
+  });
+}
+
+function bevestigPersoon(ja) {
+  if (!ja) {
+    ['p-naam','p-adres','p-postcode','p-gemeente','p-iban','p-rijksreg','p-priveemail'].forEach(function(id){
+      document.getElementById(id).readOnly = false;
+    });
+    document.getElementById('p-domein-display').style.display = 'none';
+    document.getElementById('p-domein').style.display = '';
+    // Stel ingangsdatum in op vandaag als standaard
+    var vandaag = new Date().toISOString().split('T')[0];
+    document.getElementById('p-adreswijziging-datum').value = vandaag;
+    document.getElementById('btn-nee').disabled = true;
+    document.getElementById('btn-ja').textContent = '✓ Opslaan en verder';
+    wasBewerkt = true;
+    document.getElementById('p-naam').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  // Controleer of adres gewijzigd is en toon datumveld indien nodig
+  if (wasBewerkt && !isNieuwePersoon && origineelePersoonData) {
+    var huidigAdres = document.getElementById('p-adres').value.trim();
+    var huidigPc   = document.getElementById('p-postcode').value.trim();
+    var huidigGem  = document.getElementById('p-gemeente').value.trim();
+    var adresVeld  = document.getElementById('p-adreswijziging-wrap');
+    if (huidigAdres !== (origineelePersoonData.adres || '') ||
+        (huidigPc + ' ' + huidigGem) !== (origineelePersoonData.postcodeGem || '')) {
+      adresVeld.style.display = 'block';
+    } else {
+      adresVeld.style.display = 'none';
+    }
+  }
+
+  var domein = document.getElementById('p-domein').value;
+  var naam = document.getElementById('p-naam').value.trim();
+  var adres = document.getElementById('p-adres').value.trim();
+  var pc   = document.getElementById('p-postcode').value.trim();
+  var gem  = document.getElementById('p-gemeente').value.trim();
+  var iban = document.getElementById('p-iban').value.trim();
+  var rr   = document.getElementById('p-rijksreg').value.trim();
+  var priv = document.getElementById('p-priveemail').value.trim();
+
+  verbergFormFout_('p-fout');
+  if (!domein || !naam || !adres || !pc || !gem || !iban || !rr || !priv) {
+    toonFormFout_('p-fout', 'Vul alle verplichte velden in (domein, naam, adres, postcode, gemeente, IBAN, rijksregisternummer, privé e-mail).');
+    return;
+  }
+  if (!valideerIBAN_(iban)) {
+    toonIBANFout_();
+    var ibanEl = document.getElementById('p-iban');
+    ibanEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ibanEl.focus();
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(priv)) {
+    toonFormFout_('p-fout', 'Het privé e-mailadres is niet geldig. Vul een correct e-mailadres in (bv. voornaam@example.com).');
+    document.getElementById('p-priveemail').focus();
+    return;
+  }
+
+  // Detecteer adreswijziging en vraag ingangsdatum
+  var adresGewijzigd = false;
+  if (!isNieuwePersoon && origineelePersoonData) {
+    var nieuwPcGem = (pc + ' ' + gem).trim();
+    if (adres !== (origineelePersoonData.adres || '') || nieuwPcGem !== (origineelePersoonData.postcodeGem || '')) {
+      adresGewijzigd = true;
+    }
+  }
+
+  var effectiveDate = null;
+  if (adresGewijzigd) {
+    effectiveDate = document.getElementById('p-adreswijziging-datum').value;
+    if (!effectiveDate) {
+      toonFormFout_('p-fout', 'Geef de ingangsdatum van het nieuwe adres in.');
+      document.getElementById('p-adreswijziging-wrap').style.display = 'block';
+      return;
+    }
+  }
+
+  S.naam = naam;
+  toonScherm('screen-laden');
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (!res.ok) { toonFout(res.error || 'Opslaan mislukt.'); return; }
+      setBadges(naam);
+      toonScherm('screen-categorie');
+    })
+    .withFailureHandler(onFout)
+    .saveUserDataAlle({
+      domein: domein, naam: naam, adres: adres, postcodeGem: pc + ' ' + gem, iban: iban,
+      rijksregisternummer: rr, priveEmail: priv,
+      effectiveDate: effectiveDate,
+    });
+}
+
+function setBadges(naam) {
+  ['badge-categorie','badge-fiets','badge-woonwerk','badge-dienst'].forEach(function(id){
+    document.getElementById(id).textContent = '👤 ' + naam;
+  });
+}
+
+// ── CATEGORIE ──────────────────────────────────────────────────────────────────
+function kiesCategorie(kat) {
+  S.weergaveJaar = S.jaar;
+  setBadges(S.naam);
+  if (kat === 'fiets') {
+    toonScherm('screen-fiets');
+    stelMaandBereikIn_('fiets');
+    selecteerKwartaal('fiets', S.huidigKw.fiets);
+  }
+  if (kat === 'woonwerk') {
+    toonScherm('screen-woonwerk');
+    stelMaandBereikIn_('woonwerk');
+    selecteerKwartaal('woonwerk', S.huidigKw.woonwerk);
+    renderWwThumbnails_();
+  }
+  if (kat === 'dienst') { toonScherm('screen-dienst'); selecteerKwartaal('dienst', S.huidigKw.dienst); }
+}
+
+// ── KWARTAAL ──────────────────────────────────────────────────────────────────
+function kwartaalStart_(kw, jaar) {
+  return jaar + '-' + ['01-01','04-01','07-01','10-01'][kw - 1];
+}
+
+function kwartaalEinde_(kw, jaar) {
+  return jaar + '-' + ['03-31','06-30','09-30','12-31'][kw - 1];
+}
+
+function vandaagISO_() {
+  var info = S.kwartaalInfo;
+  if (info && info.today) {
+    var d = info.today.split('/');
+    if (d.length === 3) return d[2] + '-' + d[1] + '-' + d[0];
+  }
+  return new Date().toISOString().split('T')[0];
+}
+
+var MAANDNAMEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+
+function kwartaalVanDatumISO_(dateStr) {
+  if (!dateStr) return null;
+  var m = parseInt((dateStr.split('-')[1]) || 0);
+  return m <= 3 ? 1 : m <= 6 ? 2 : m <= 9 ? 3 : 4;
+}
+
+function formatMaandJaar_(datumStr) {
+  if (!datumStr) return '—';
+  var d = datumStr.split('-');
+  var m = parseInt(d[1]) - 1;
+  var j = parseInt(d[0]);
+  return MAANDNAMEN[m] + ' ' + j;
+}
+
+function maandenVanKwartaal_(kw, jaar) {
+  var result = [], startM = (kw - 1) * 3 + 1;
+  for (var i = 0; i < 3; i++) {
+    var m = startM + i, j = jaar;
+    if (m > 12) { m -= 12; j++; }
+    result.push(j + '-' + String(m).padStart(2, '0'));
+  }
+  return result;
+}
+
+function kiesMaand_(kat, maandStr) {
+  var prefix = kat === 'woonwerk' ? 'ww' : 'fiets';
+  document.getElementById(prefix + '-maand').value = maandStr;
+  var naam = MAANDNAMEN[parseInt(maandStr.split('-')[1]) - 1] + ' ' + maandStr.split('-')[0];
+  var lbl = document.getElementById(prefix + '-maand-label');
+  lbl.textContent = naam;
+  lbl.classList.remove('maand-placeholder');
+  sluitAlleMaandPickers_();
+  updateKwartaalIndicator_(kat, maandStr + '-01');
+}
+
+function sluitAlleMaandPickers_() {
+  ['fiets-maand-dropdown','ww-maand-dropdown'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  ['fiets-maand-trigger','ww-maand-trigger'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('open');
+  });
+}
+
+function bouwMaandLijst_(kat) {
+  var prefix  = kat === 'woonwerk' ? 'ww' : 'fiets';
+  var lijst   = document.getElementById(prefix + '-maand-lijst');
+  var melding = document.getElementById(prefix + '-maand-melding');
+  if (!lijst) return;
+  lijst.innerHTML = '';
+  if (melding) melding.style.display = 'none';
+
+  var info = S.kwartaalInfo;
+  if (!info) return;
+
+  var curQ    = info.currentQuarter;
+  var curYear = info.currentYear || S.jaar;
+  var prevQ   = info.prevQuarter;
+  var prevYear = info.prevYear || S.jaar;
+  var huidig  = document.getElementById(prefix + '-maand').value;
+  var isSlot  = !info.isGracePeriod;
+
+  function maakSectie(tekst) {
+    var d = document.createElement('div');
+    d.className = 'maand-sectie';
+    d.textContent = tekst;
+    lijst.appendChild(d);
+  }
+
+  function maakOptie(maandStr, afgesloten) {
+    var naam = MAANDNAMEN[parseInt(maandStr.split('-')[1]) - 1] + ' ' + maandStr.split('-')[0];
+    var d = document.createElement('div');
+    d.className = 'maand-optie' + (afgesloten ? ' afgesloten' : '') + (maandStr === huidig ? ' geselecteerd' : '');
+    d.innerHTML = (afgesloten ? '<span title="Afgesloten">🔒</span> ' : '') + naam;
+    if (afgesloten) {
+      d.onclick = function() {
+        if (melding) {
+          melding.textContent = '🔒 Kwartaal ' + prevQ + ' ' + prevYear + ' is afgesloten. Indienen was mogelijk t/m ' + info.prevDeadline + '.';
+          melding.style.display = 'block';
+        }
+      };
+    } else {
+      d.onclick = function() { kiesMaand_(kat, maandStr); };
+    }
+    lijst.appendChild(d);
+  }
+
+  maakSectie('Kwartaal ' + prevQ + ' ' + prevYear + (isSlot ? '  —  afgesloten' : '  —  open t/m ' + info.prevDeadline));
+  maandenVanKwartaal_(prevQ, prevYear).forEach(function(m) { maakOptie(m, isSlot); });
+
+  maakSectie('Kwartaal ' + curQ + ' ' + curYear + '  —  huidig kwartaal');
+  maandenVanKwartaal_(curQ, curYear).forEach(function(m) { maakOptie(m, false); });
+}
+
+function toggleMaandPicker(kat) {
+  var prefix  = kat === 'woonwerk' ? 'ww' : 'fiets';
+  var dropdown = document.getElementById(prefix + '-maand-dropdown');
+  var trigger  = document.getElementById(prefix + '-maand-trigger');
+  var wasOpen  = dropdown.style.display === 'block';
+  sluitAlleMaandPickers_();
+  if (!wasOpen) {
+    bouwMaandLijst_(kat);
+    dropdown.style.display = 'block';
+    trigger.classList.add('open');
+  }
+}
+
+function stelMaandBereikIn_(kat) {
+  var editId = kat === 'woonwerk' ? 'ww-edit-id' : 'fiets-edit-id';
+  if (document.getElementById(editId).value) return;
+  var info = S.kwartaalInfo;
+  if (!info) return;
+  var curYear  = info.currentYear || S.jaar;
+  var curQ     = info.currentQuarter;
+  var minMaand = info.isGracePeriod
+    ? kwartaalStart_(info.prevQuarter, info.prevYear || S.jaar).substring(0, 7)
+    : kwartaalStart_(curQ, curYear).substring(0, 7);
+  var maxMaand = kwartaalEinde_(curQ, curYear).substring(0, 7);
+  var huidig   = vandaagISO_().substring(0, 7);
+  kiesMaand_(kat, (huidig >= minMaand && huidig <= maxMaand) ? huidig : maxMaand);
+}
+
+function updateKwartaalIndicator_(kat, datumStr) {
+  var el = document.getElementById(kat + '-kw-indicator');
+  if (!el) return;
+  if (!datumStr) { el.className = 'kw-indicator'; return; }
+  var kw   = kwartaalVanDatumISO_(datumStr);
+  var jaar = parseInt(datumStr.split('-')[0]);
+  if (!kw || isNaN(jaar)) { el.className = 'kw-indicator'; return; }
+  var kwNamen = { 1:'jan–mrt', 2:'apr–jun', 3:'jul–sep', 4:'okt–dec' };
+  var info = S.kwartaalInfo;
+  var isGesloten = kwartaalIsGesloten(kat, kw);
+  var isOvergang = info && info.isGracePeriod && kw === info.prevQuarter && jaar === info.prevYear;
+  if (isGesloten) {
+    el.className = 'kw-indicator gesloten';
+    el.textContent = '⛔ Kwartaal ' + kw + ' ' + jaar + ' is afgesloten — aanvraag niet meer mogelijk';
+  } else if (isOvergang) {
+    el.className = 'kw-indicator overgang';
+    el.textContent = '⏳ Aanvraag voor Kwartaal ' + kw + ' ' + jaar + ' (' + kwNamen[kw] + ') — indienen nog mogelijk tot ' + info.prevDeadline;
+  } else {
+    el.className = 'kw-indicator open';
+    el.textContent = '→ Aanvraag voor Kwartaal ' + kw + ' ' + jaar + ' (' + kwNamen[kw] + ')';
+  }
+}
+
+function setStandaardDatum_(kat, kw) {
+  var el     = document.getElementById('d-datum');
+  var editEl = document.getElementById('d-edit-id');
+  if (!el || (editEl && editEl.value)) return;
+  var vandaag = vandaagISO_();
+  var start   = kwartaalStart_(kw, S.jaar);
+  var einde   = kwartaalEinde_(kw, S.jaar);
+  el.value = (vandaag >= start && vandaag <= einde) ? vandaag : einde;
+  updateKwartaalIndicator_('dienst', el.value);
+}
+
+function selecteerKwartaal(kat, kw) {
+  S.huidigKw[kat] = kw;
+  document.querySelectorAll('#screen-' + kat + ' .kw-tab').forEach(function(t){
+    t.classList.toggle('aktief', parseInt(t.dataset.kw) === kw);
+  });
+  if (kat === 'dienst') setStandaardDatum_(kat, kw);
+  updateJaarSchakelaar(kat);
+  updateFormulierZichtbaarheid(kat);
+  laadRitten(kat);
+}
+
+function selecteerKwartaalStilletjes_(kat, kw) {
+  S.huidigKw[kat] = kw;
+  document.querySelectorAll('#screen-' + kat + ' .kw-tab').forEach(function(t){
+    t.classList.toggle('aktief', parseInt(t.dataset.kw) === kw);
+  });
+  if (kat === 'dienst') setStandaardDatum_(kat, kw);
+  updateJaarSchakelaar(kat);
+  updateFormulierZichtbaarheid(kat);
+  laadRitten(kat, true, true);
+}
+
+
+// ── RITTEN RENDEREN ───────────────────────────────────────────────────────────
+function renderRitten(kat) {
+  var ritten = S.ritten[kat];
+  var el = document.getElementById(kat + '-lijst');
+
+  if (kat === 'fiets') {
+    var totaal = ritten.reduce(function(s,r){ return s + (parseFloat(r.km)||0); }, 0);
+    document.getElementById('fiets-totaal').textContent = totaal.toFixed(2).replace('.',',') + ' km';
+  }
+  if (kat === 'woonwerk') {
+    var totaalBedrag = ritten.reduce(function(s,r){ return s + (parseFloat(r.bedrag)||0); }, 0);
+    document.getElementById('woonwerk-totaal').textContent = '€ ' + totaalBedrag.toFixed(2).replace('.',',');
+  }
+  if (kat === 'dienst') {
+    var totaalKm = ritten.reduce(function(s,r){ return s + (parseFloat(r.km)||0); }, 0);
+    document.getElementById('dienst-totaal').textContent = totaalKm.toFixed(2).replace('.',',') + ' km';
+  }
+
+  if (ritten.length === 0) {
+    el.innerHTML = '<p class="leeg-tekst">Nog geen ritten/verplaatsingen dit kwartaal.</p>';
+    return;
+  }
+
+  var leesonly = isLeesonly_(S.huidigKw[kat], S.weergaveJaar || S.jaar);
+  var html = '';
+  ritten.forEach(function(r) {
+    var datStr = r.datum
+      ? ((kat === 'fiets' || kat === 'woonwerk') ? formatMaandJaar_(r.datum) : r.datum.split('-').reverse().join('/'))
+      : '—';
+    html += '<div class="rit-item ' + kat + '" data-id="' + r.id + '">';
+    html += '<div class="rit-hoofd-rij">';
+    html += '<div class="rit-info">';
+    html += '<div class="rit-datum">📅 ' + datStr + '</div>';
+
+    if (kat === 'fiets') {
+      html += '<div class="rit-hoofd">' + esc(r.bestemming || '—') + '</div>';
+      html += '<div class="rit-sub">🚴 ' + (r.km||0) + ' km</div>';
+    } else if (kat === 'woonwerk') {
+      html += '<div class="rit-hoofd">' + esc(r.van||'—') + ' → ' + esc(r.naar||'—') + '</div>';
+      var bedragStr = r.bedrag > 0 ? ' · € ' + parseFloat(r.bedrag).toFixed(2).replace('.',',') : '';
+      html += '<div class="rit-sub">🚆 ' + esc(r.vervoer||'—') + bedragStr + '</div>';
+    } else {
+      html += '<div class="rit-hoofd">' + esc(r.bestemming||'—') + '</div>';
+      html += '<div class="rit-sub">🚗 ' + (r.km||0) + ' km · ' + esc(r.doel||'—') + '</div>';
+    }
+
+    html += '</div>'; // /rit-info
+    var ids = (kat === 'woonwerk' && r.bestandIds && r.bestandIds.length) ? r.bestandIds : (r.bestandId ? [r.bestandId] : []);
+    var multiRij = kat === 'woonwerk' && ids.length > 1;
+    html += '<div class="rit-bewijs-inline">';
+    if (!multiRij) {
+      if (ids.length) {
+        ids.forEach(function(bid) {
+          var thumbUrl = 'https://drive.google.com/thumbnail?id=' + bid + '&sz=w120';
+          var fullUrl  = 'https://drive.google.com/thumbnail?id=' + bid + '&sz=w1600';
+          html += '<img class="rit-thumb-inline" src="' + thumbUrl + '" data-fullsrc="' + fullUrl + '" alt="Bewijs" onclick="openLightbox(\'' + fullUrl + '\')" title="Klik voor groter">';
+        });
+      } else if (kat !== 'dienst') {
+        html += '<span class="ontbreekt-badge" title="Bewijs ontbreekt">&#9888;</span>';
+      }
+    }
+    html += '</div>';
+    html += '<div class="rit-acties">';
+    if (!leesonly) {
+      html += '<button class="icon-btn" onclick="bewerkRit(\'' + kat + '\',\'' + r.id + '\')" title="Bewerken">✏️</button>';
+      html += '<button class="icon-btn del" onclick="verwijderRit(\'' + kat + '\',\'' + r.id + '\')" title="Verwijderen">🗑️</button>';
+    }
+    html += '</div>';
+    html += '</div>'; // /rit-hoofd-rij
+
+    if (multiRij) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+      ids.forEach(function(bid, bi) {
+        var thumbUrl = 'https://drive.google.com/thumbnail?id=' + bid + '&sz=w120';
+        var fullUrl  = 'https://drive.google.com/thumbnail?id=' + bid + '&sz=w1600';
+        html += '<img src="' + thumbUrl + '" data-fullsrc="' + fullUrl + '" alt="Bewijs ' + (bi+1) + '" onclick="openLightbox(\'' + fullUrl + '\')" title="Bewijs ' + (bi+1) + '" style="width:56px;height:56px;object-fit:cover;border-radius:7px;border:1.5px solid var(--border);cursor:zoom-in;">';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>'; // /rit-item
+  });
+  el.innerHTML = html;
+}
+
+// ── LOKALE PREVIEW (voor upload) ──────────────────────────────────────────────
+function toonLocalPreview(kat, input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  uploadState[kat].file = file;
+
+  var prefixId = kat === 'woonwerk' ? 'ww' : kat === 'dienst' ? 'd' : 'fiets';
+  var zone     = document.getElementById(prefixId + '-upload-zone');
+  var ph       = document.getElementById(prefixId + '-upload-placeholder');
+  var prev     = document.getElementById(prefixId + '-upload-preview');
+
+  zone.classList.add('heeft-bestand');
+
+  if (file.type.startsWith('image/')) {
+    comprimeerAfbeelding_(file, function(dataUrl) {
+      uploadState[kat].dataUrl = dataUrl;
+      uploadState[kat].previewSrc = dataUrl;
+      prev.innerHTML =
+        '<div class="upload-thumb-wrap">' +
+        '<img class="upload-thumb" src="' + dataUrl + '" alt="Preview" data-fullsrc="' + dataUrl + '" onclick="openLightbox(\'' + dataUrl + '\')">' +
+        '<button class="upload-verwijder" onclick="event.stopPropagation();verwijderUpload(\'' + kat + '\')">✕</button>' +
+        '</div>' +
+        '<div class="bestand-naam"><strong>' + esc(file.name) + '</strong></div>' +
+        '<span class="upload-vervang">Ander bestand kiezen</span>';
+      prev.classList.add('zichtbaar');
+      ph.style.display = 'none';
+    });
+  } else {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      uploadState[kat].dataUrl = e.target.result;
+      uploadState[kat].previewSrc = null;
+      prev.innerHTML =
+          '<div class="upload-thumb-wrap">' +
+          '<div class="upload-thumb-pdf">📄</div>' +
+          '<button class="upload-verwijder" onclick="event.stopPropagation();verwijderUpload(\'' + kat + '\')">✕</button>' +
+          '</div>' +
+          '<div class="bestand-naam"><strong>' + esc(file.name) + '</strong></div>' +
+          '<span class="upload-vervang">Ander bestand kiezen</span>';
+      prev.classList.add('zichtbaar');
+      ph.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// ── BESTAAND BEWIJS TONEN (bij bewerken) ─────────────────────────────────────
+function toonUploadZoneVervangen(kat) {
+  var prefix = kat === 'woonwerk' ? 'ww' : kat === 'dienst' ? 'd' : 'fiets';
+  var zone = document.getElementById(prefix + '-upload-zone');
+  if (zone) zone.style.display = '';
+}
+
+function toonBestaandBewijs(kat, bestandId, bestandUrl) {
+  var prefix = kat === 'woonwerk' ? 'ww' : kat === 'dienst' ? 'd' : 'fiets';
+  var wrap   = document.getElementById(prefix + '-bestaand-bewijs');
+  var zone   = document.getElementById(prefix + '-upload-zone');
+  if (!bestandId) { wrap.style.display = 'none'; if (zone) zone.style.display = ''; return; }
+
+  var thumbUrl = 'https://drive.google.com/thumbnail?id=' + bestandId + '&sz=w120';
+  wrap.innerHTML =
+    '<div class="bestaand-bewijs-label">Huidig bewijs:</div>' +
+    '<div class="bestaand-bewijs-thumb">' +
+    '<img src="' + thumbUrl + '" alt="Huidig bewijs" onclick="openLightbox(\'' + thumbUrl + '\')">' +
+    '<div class="bd-tekst">Bewijs al aanwezig<br>' +
+    '<span class="bd-link" onclick="toonUploadZoneVervangen(\'' + kat + '\')">↻ Ander bewijs uploaden</span>' +
+    '</div>' +
+    '</div>';
+  wrap.style.display = 'block';
+  if (zone) zone.style.display = 'none';
+}
+
+// ── BEWERKEN ──────────────────────────────────────────────────────────────────
+function bewerkRit(kat, id) {
+  var r = S.ritten[kat].find(function(x){ return x.id === id; });
+  if (!r) return;
+
+  // Reset upload state
+  resetUploadZone(kat);
+
+  if (kat === 'fiets') {
+    document.getElementById('fiets-edit-id').value  = r.id;
+    document.getElementById('fiets-edit-rij').value = r.rijnummer;
+    if (r.datum) kiesMaand_('fiets', r.datum.substring(0, 7));
+    document.getElementById('fiets-bestemming').value   = r.bestemming || '';
+    document.getElementById('fiets-km').value            = r.km || '';
+    document.getElementById('fiets-form-titel').textContent = '✏️ Maand bewerken';
+    document.getElementById('fiets-annuleer-btn').style.display = '';
+    toonBestaandBewijs('fiets', r.bestandId || '', r.bestandUrl || '');
+  } else if (kat === 'woonwerk') {
+    document.getElementById('ww-edit-id').value  = r.id;
+    document.getElementById('ww-edit-rij').value = r.rijnummer;
+    if (r.datum) kiesMaand_('woonwerk', r.datum.substring(0, 7));
+    document.getElementById('ww-van').value      = r.van || '';
+    document.getElementById('ww-naar').value     = r.naar || '';
+    document.getElementById('ww-vervoer').value  = r.vervoer || '';
+    document.getElementById('ww-bedrag').value   = r.bedrag || '';
+    document.getElementById('ww-form-titel').textContent = '✏️ Verplaatsing bewerken';
+    document.getElementById('ww-annuleer-btn').style.display = '';
+    var bewijzenBewerk = r.bestandIds && r.bestandIds.length ? r.bestandIds : (r.bestandId ? [r.bestandId] : []);
+    var bewijsWrap = document.getElementById('ww-bestaand-bewijs');
+    if (bewijzenBewerk.length) {
+      var bewijsHtml = '<div class="bestaand-bewijs-label">Huidig bewijs:</div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      bewijzenBewerk.forEach(function(bId, bi) {
+        var thumbUrl = 'https://drive.google.com/thumbnail?id=' + bId + '&sz=w120';
+        bewijsHtml += '<img src="' + thumbUrl + '" style="width:52px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #bfdbfe;cursor:pointer;" onclick="openLightbox(\'' + thumbUrl + '\')" title="Bewijs ' + (bi+1) + '">';
+      });
+      bewijsHtml += '</div><div style="font-size:11px;color:#1e40af;margin-top:4px;">Nieuwe bestanden worden toegevoegd aan de bestaande</div>';
+      bewijsWrap.innerHTML = bewijsHtml;
+      bewijsWrap.style.display = 'block';
+    } else {
+      bewijsWrap.style.display = 'none';
+    }
+    renderWwThumbnails_();
+  } else {
+    document.getElementById('d-edit-id').value  = r.id;
+    document.getElementById('d-edit-rij').value = r.rijnummer;
+    document.getElementById('d-datum').value       = r.datum || '';
+    document.getElementById('d-bestemming').value  = r.bestemming || '';
+    document.getElementById('d-doel').value         = r.doel || '';
+    document.getElementById('d-km').value           = r.km || '';
+    document.getElementById('d-form-titel').textContent = '✏️ Verplaatsing bewerken';
+    document.getElementById('d-annuleer-btn').style.display = '';
+    var heeftParkeerticket = !!r.bestandId || r.parkeerBedrag > 0;
+    document.getElementById('d-parkeerticket').checked = heeftParkeerticket;
+    document.getElementById('d-bewijs-wrap').style.display = heeftParkeerticket ? '' : 'none';
+    document.getElementById('d-parkeer-bedrag').value = heeftParkeerticket ? (r.parkeerBedrag || '') : '';
+    toonBestaandBewijs('dienst', r.bestandId || '', r.bestandUrl || '');
+    updateKwartaalIndicator_('dienst', r.datum || '');
+  }
+
+  var scrollId = kat === 'dienst' ? 'd-form' : kat === 'woonwerk' ? 'ww-form' : 'fiets-form';
+  document.getElementById(scrollId).scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function resetUploadZone(kat) {
+  if (kat === 'woonwerk') { resetWwUploads_(); return; }
+  uploadState[kat] = { file: null, dataUrl: null };
+  var prefix = kat === 'dienst' ? 'd' : 'fiets';
+  var zone = document.getElementById(prefix + '-upload-zone');
+  var ph   = document.getElementById(prefix + '-upload-placeholder');
+  var prev = document.getElementById(prefix + '-upload-preview');
+  if (zone) { zone.classList.remove('heeft-bestand'); zone.style.display = ''; }
+  if (ph)   ph.style.display = '';
+  if (prev) { prev.innerHTML = ''; prev.classList.remove('zichtbaar'); }
+  var inp = document.getElementById(kat + '-bestand');
+  if (inp) inp.value = '';
+}
+
+function verwijderUpload(kat) {
+  resetUploadZone(kat);
+}
+
+function annuleerBewerk(kat) {
+  resetUploadZone(kat);
+  if (kat === 'fiets') {
+    document.getElementById('fiets-edit-id').value = '';
+    document.getElementById('fiets-edit-rij').value = '';
+    document.getElementById('fiets-bestemming').value = lastFietsBestemming;
+    document.getElementById('fiets-km').value = '';
+    document.getElementById('fiets-form-titel').textContent = '➕ Fietsverplaatsing toevoegen';
+    document.getElementById('fiets-annuleer-btn').style.display = 'none';
+    document.getElementById('fiets-bestaand-bewijs').style.display = 'none';
+  } else if (kat === 'woonwerk') {
+    document.getElementById('ww-edit-id').value = '';
+    document.getElementById('ww-edit-rij').value = '';
+    document.getElementById('ww-van').value     = lastWwVan;
+    document.getElementById('ww-naar').value    = lastWwNaar;
+    document.getElementById('ww-vervoer').value = lastWwVervoer;
+    document.getElementById('ww-bedrag').value  = '';
+    document.getElementById('ww-form-titel').textContent = '➕ Verplaatsing toevoegen';
+    document.getElementById('ww-annuleer-btn').style.display = 'none';
+    document.getElementById('ww-bestaand-bewijs').style.display = 'none';
+  } else {
+    document.getElementById('d-edit-id').value = '';
+    document.getElementById('d-edit-rij').value = '';
+    document.getElementById('d-bestemming').value = document.getElementById('d-doel').value = document.getElementById('d-km').value = '';
+    document.getElementById('d-parkeer-bedrag').value = '';
+    document.getElementById('d-form-titel').textContent = '➕ Dienstverplaatsing toevoegen';
+    document.getElementById('d-annuleer-btn').style.display = 'none';
+    document.getElementById('d-bestaand-bewijs').style.display = 'none';
+    document.getElementById('d-parkeerticket').checked = false;
+    document.getElementById('d-bewijs-wrap').style.display = 'none';
+  }
+  if (kat === 'fiets' || kat === 'woonwerk') stelMaandBereikIn_(kat);
+  else setStandaardDatum_(kat, S.huidigKw[kat]);
+}
+
+// ── UPLOAD HELPER ─────────────────────────────────────────────────────────────
+function verversKwartaalAchtergrond_() {
+  google.script.run.verversKwartaaloverzicht();
+}
+
+// ── WW MULTI-UPLOAD ───────────────────────────────────────────────────────────
+function comprimeerAfbeelding_(file, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var maxW = 1200;
+      var w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Stuurt de bestandsdata via PUT naar een uploadUrl die de server al heeft aangemaakt.
+// Geen OAuth-token nodig in de browser — de URL is al geautoriseerd.
+function uploadNaarDriveViaUrl_(uploadUrl, dataUrl) {
+  var mimeType = dataUrl.split(';')[0].split(':')[1];
+  var binStr   = atob(dataUrl.split(',')[1]);
+  var bytes    = new Uint8Array(binStr.length);
+  for (var i = 0; i < binStr.length; i++) { bytes[i] = binStr.charCodeAt(i); }
+  var blob = new Blob([bytes], { type: mimeType });
+  return fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: blob })
+    .then(function(res) {
+      if (!res.ok) return res.text().then(function(t) { throw new Error('Upload mislukt: ' + t); });
+      return res.json();
+    });
+}
+
+function toonWwMultiPreview_(input) {
+  var files = input.files;
+  if (!files || files.length === 0) return;
+  var beschikbaar = 4 - uploadState.woonwerk.length;
+  if (beschikbaar <= 0) { alert('Maximum 4 bewijzen bereikt.'); input.value = ''; return; }
+  if (files.length > beschikbaar) {
+    alert('Je selecteerde ' + files.length + ' bestanden, maar er ' + (beschikbaar === 1 ? 'kan er nog maar 1 worden toegevoegd' : 'kunnen er nog maar ' + beschikbaar + ' worden toegevoegd') + '. Alleen de eerste ' + beschikbaar + ' worden gebruikt.');
+  }
+  var max  = Math.min(files.length, beschikbaar);
+  var nieuw = new Array(max).fill(null);
+  var klaar = 0;
+  function controleer() {
+    if (++klaar === max) {
+      uploadState.woonwerk = uploadState.woonwerk.concat(nieuw.filter(Boolean));
+      renderWwThumbnails_();
+    }
+  }
+  for (var i = 0; i < max; i++) {
+    (function(idx, f) {
+      if (f.type.startsWith('image/')) {
+        comprimeerAfbeelding_(f, function(dataUrl) {
+          nieuw[idx] = { file: f, dataUrl: dataUrl };
+          controleer();
+        });
+      } else {
+        var reader = new FileReader();
+        reader.onload = function(e) { nieuw[idx] = { file: f, dataUrl: e.target.result }; controleer(); };
+        reader.readAsDataURL(f);
+      }
+    })(i, files[i]);
+  }
+  input.value = '';
+}
+
+function renderWwThumbnails_() {
+  var zone = document.getElementById('ww-upload-zone');
+  var ph   = document.getElementById('ww-upload-placeholder');
+  var prev = document.getElementById('ww-upload-preview');
+  if (!uploadState.woonwerk.length) {
+    zone.classList.remove('heeft-bestand');
+    ph.style.display = '';
+    prev.innerHTML = '';
+    prev.classList.remove('zichtbaar');
+    return;
+  }
+  zone.classList.add('heeft-bestand');
+  ph.style.display = 'none';
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:4px 0;">';
+  uploadState.woonwerk.forEach(function(us, idx) {
+    html += '<div style="position:relative;display:inline-block;text-align:center;">';
+    if (us.dataUrl) {
+      html += '<img class="upload-thumb" src="' + us.dataUrl + '" onclick="event.stopPropagation();openLightbox(\'' + us.dataUrl + '\')" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #bfdbfe;cursor:zoom-in;display:block;">';
+    } else {
+      html += '<div style="width:72px;height:72px;border-radius:6px;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;font-size:28px;background:#f8f9fa;">&#128196;</div>';
+    }
+    html += '<button class="upload-verwijder" onclick="event.stopPropagation();verwijderWwBestand_(' + idx + ')" style="position:absolute;top:-6px;right:-6px;">&#10005;</button>';
+    html += '<div style="font-size:9px;color:#64748b;margin-top:2px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(us.file.name) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  var linkTekst = uploadState.woonwerk.length < 4 ? '+ Nog bestanden toevoegen' : 'Bestanden wijzigen';
+  html += '<span class="upload-vervang" onclick="event.stopPropagation();document.getElementById(\'ww-bestand\').click()">' + linkTekst + '</span>';
+  prev.innerHTML = html;
+  prev.classList.add('zichtbaar');
+}
+
+function verwijderWwBestand_(idx) {
+  uploadState.woonwerk.splice(idx, 1);
+  renderWwThumbnails_();
+}
+
+function resetWwUploads_() {
+  uploadState.woonwerk = [];
+  var inp = document.getElementById('ww-bestand');
+  if (inp) inp.value = '';
+  renderWwThumbnails_();
+}
+
+// Woonwerk: alle bestanden in ÉÉN GAS-aanroep uploaden.
+// Server doet alles parallel via UrlFetchApp.fetchAll — geen browser-fetch naar googleapis.com nodig.
+function uploadMeerdereWwBewijzen_(ritId, btnId, voortgangId, callback) {
+  var bestanden = uploadState.woonwerk.filter(function(u){ return !!u && !!u.file; });
+  if (bestanden.length === 0) { callback(true); verversKwartaalAchtergrond_(); return; }
+
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(voortgangId).classList.add('zichtbaar');
+  var elTekst = document.getElementById('ww-upload-tekst');
+  if (elTekst) elTekst.textContent = bestanden.length === 1 ? 'Bewijs uploaden…' : bestanden.length + ' bewijzen uploaden…';
+
+  var data = bestanden.map(function(us) {
+    return { base64: us.dataUrl.split(',')[1], mimeType: us.dataUrl.split(';')[0].split(':')[1], naam: us.file.name };
+  });
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      document.getElementById(voortgangId).classList.remove('zichtbaar');
+      document.getElementById(btnId).disabled = false;
+      if (!res || !res.ok) { alert('Upload mislukt: ' + ((res && res.error) || '')); callback(false); return; }
+      verversKwartaalAchtergrond_();
+      callback(true);
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById(voortgangId).classList.remove('zichtbaar');
+      document.getElementById(btnId).disabled = false;
+      onFout(err); callback(false);
+    })
+    .uploadBewijzenBatch(data, ritId, 'woonwerk');
+}
+
+// Fallback: sequentiële woonwerk-upload via google.script.run (originele methode).
+function uploadMeerdereWwBewijzenGAS_(ritId, btnId, voortgangId, callback) {
+  var bestanden = uploadState.woonwerk.filter(function(u){ return !!u && !!u.file; });
+  if (bestanden.length === 0) { callback(true); verversKwartaalAchtergrond_(); return; }
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(voortgangId).classList.add('zichtbaar');
+  var idx = 0;
+  function uploadVolgende() {
+    if (idx >= bestanden.length) {
+      document.getElementById(voortgangId).classList.remove('zichtbaar');
+      document.getElementById(btnId).disabled = false;
+      verversKwartaalAchtergrond_();
+      callback(true);
+      return;
+    }
+    var tekst = document.getElementById('ww-upload-tekst');
+    if (tekst) tekst.textContent = 'Bewijs ' + (idx + 1) + ' van ' + bestanden.length + ' uploaden…';
+    var us       = bestanden[idx++];
+    var base64   = us.dataUrl.split(',')[1];
+    var mimeType = us.dataUrl.split(';')[0].split(':')[1];
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.ok) {
+          document.getElementById(voortgangId).classList.remove('zichtbaar');
+          document.getElementById(btnId).disabled = false;
+          alert('Upload mislukt: ' + (res.error||''));
+          callback(false);
+          return;
+        }
+        uploadVolgende();
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById(voortgangId).classList.remove('zichtbaar');
+        document.getElementById(btnId).disabled = false;
+        onFout(err); callback(false);
+      })
+      .uploadBewijs(base64, mimeType, us.file.name, ritId, 'woonwerk');
+  }
+  uploadVolgende();
+}
+
+// Fiets / dienst: upload via dezelfde batch-functie als woonwerk (1 bestand).
+function uploadBestandNaDriveOpslaan(kat, ritId, btnId, voortgangId, callback) {
+  var us = uploadState[kat];
+  if (!us.file) { callback(true); verversKwartaalAchtergrond_(); return; }
+
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(voortgangId).classList.add('zichtbaar');
+
+  function doUpload(dUrl) {
+    var data = [{ base64: dUrl.split(',')[1], mimeType: dUrl.split(';')[0].split(':')[1], naam: us.file.name }];
+    google.script.run
+      .withSuccessHandler(function(res) {
+        document.getElementById(voortgangId).classList.remove('zichtbaar');
+        document.getElementById(btnId).disabled = false;
+        if (!res || !res.ok) { alert('Upload mislukt: ' + ((res && res.error) || '')); callback(false); return; }
+        callback(true);
+        verversKwartaalAchtergrond_();
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById(voortgangId).classList.remove('zichtbaar');
+        document.getElementById(btnId).disabled = false;
+        onFout(err); callback(false);
+      })
+      .uploadBewijzenBatch(data, ritId, kat);
+  }
+
+  if (us.dataUrl) {
+    doUpload(us.dataUrl);
+  } else {
+    var reader = new FileReader();
+    reader.onload = function(e) { doUpload(e.target.result); };
+    reader.readAsDataURL(us.file);
+  }
+}
+
+function heeftBewijs(kat, bestaandId) {
+  if (kat === 'woonwerk') {
+    return uploadState.woonwerk.some(function(u){ return !!u && !!u.file; }) || !!bestaandId;
+  }
+  return !!uploadState[kat].file || !!bestaandId;
+}
+
+// ── OPSLAAN ───────────────────────────────────────────────────────────────────
+function slaFietsOp() {
+  verbergFormFout_('fiets-fout');
+  var maand = document.getElementById('fiets-maand').value;
+  var best  = document.getElementById('fiets-bestemming').value.trim();
+  var km    = parseFloat(document.getElementById('fiets-km').value);
+  if (!maand || !best || isNaN(km) || km <= 0) { toonFormFout_('fiets-fout', 'Kies een maand, vul vertrekpunt–bestemming en een geldig aantal km in.'); return; }
+  var datum = maand + '-01';
+
+  var id  = document.getElementById('fiets-edit-id').value;
+  var rij = parseInt(document.getElementById('fiets-edit-rij').value) || 0;
+
+  var bestaandId = '';
+  if (id) {
+    var bestaande = S.ritten.fiets.find(function(x){ return x.id === id; });
+    bestaandId = bestaande ? (bestaande.bestandId || '') : '';
+  }
+  if (!heeftBewijs('fiets', bestaandId)) { toonFormFout_('fiets-fout', 'Voeg een bewijs toe (foto of PDF) vooraleer op te slaan.'); return; }
+
+  var rit = { id: id, rijnummer: rij || undefined, naam: S.naam, datum: datum, bestemming: best, km: km };
+  document.getElementById('fiets-opslaan-btn').disabled = true;
+  document.getElementById('fiets-upload-tekst').textContent = 'Rit opslaan…';
+  document.getElementById('fiets-upload-voortgang').classList.add('zichtbaar');
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.ok) {
+        document.getElementById('fiets-opslaan-btn').disabled = false;
+        document.getElementById('fiets-upload-voortgang').classList.remove('zichtbaar');
+        toonFormFout_('fiets-fout', 'Fout: ' + (res.error||'')); return;
+      }
+      lastFietsBestemming = best;
+      localStorage.setItem('lk_fiets_best', best);
+      var doelKw = kwartaalVanDatumISO_(datum);
+      document.getElementById('fiets-upload-tekst').textContent = 'Bewijs uploaden naar Drive…';
+      uploadBestandNaDriveOpslaan('fiets', res.id, 'fiets-opslaan-btn', 'fiets-upload-voortgang', function(ok) {
+        if (ok) { annuleerBewerk('fiets'); selecteerKwartaalStilletjes_('fiets', doelKw || S.huidigKw.fiets); toonSuccesmelding_('✓ Rit succesvol opgeslagen!'); }
+      });
+    })
+    .withFailureHandler(function(e){
+      document.getElementById('fiets-opslaan-btn').disabled = false;
+      document.getElementById('fiets-upload-voortgang').classList.remove('zichtbaar');
+      onFout(e);
+    })
+    .saveRit(rit, 'fiets');
+}
+
+function slaWoonwerkOp() {
+  verbergFormFout_('ww-fout');
+  var maand   = document.getElementById('ww-maand').value;
+  var van     = document.getElementById('ww-van').value.trim();
+  var naar    = document.getElementById('ww-naar').value.trim();
+  var vervoer = document.getElementById('ww-vervoer').value;
+  var bedrag  = parseFloat(document.getElementById('ww-bedrag').value) || 0;
+  if (!maand || !van || !naar || !vervoer) { toonFormFout_('ww-fout', 'Vul alle velden in.'); return; }
+  if (bedrag <= 0) { toonFormFout_('ww-fout', 'Vul een geldig bedrag in (€).'); return; }
+  var datum = maand + '-01';
+
+  var id  = document.getElementById('ww-edit-id').value;
+  var rij = parseInt(document.getElementById('ww-edit-rij').value) || 0;
+
+  var bestaandId = '';
+  if (id) {
+    var bestaande = S.ritten.woonwerk.find(function(x){ return x.id === id; });
+    bestaandId = bestaande ? (bestaande.bestandId || '') : '';
+  }
+  if (!heeftBewijs('woonwerk', bestaandId)) { toonFormFout_('ww-fout', 'Voeg een bewijs toe (foto of PDF van het ticket) vooraleer op te slaan.'); return; }
+
+  var rit = { id: id, rijnummer: rij || undefined, naam: S.naam, datum: datum, van: van, naar: naar, vervoer: vervoer, bedrag: bedrag };
+  document.getElementById('ww-opslaan-btn').disabled = true;
+  document.getElementById('ww-upload-tekst').textContent = 'Rit opslaan…';
+  document.getElementById('ww-upload-voortgang').classList.add('zichtbaar');
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.ok) {
+        document.getElementById('ww-opslaan-btn').disabled = false;
+        document.getElementById('ww-upload-voortgang').classList.remove('zichtbaar');
+        toonFormFout_('ww-fout', 'Fout: ' + (res.error||'')); return;
+      }
+      lastWwVan = van; lastWwNaar = naar; lastWwVervoer = vervoer;
+      localStorage.setItem('lk_ww_van', van);
+      localStorage.setItem('lk_ww_naar', naar);
+      localStorage.setItem('lk_ww_vervoer', vervoer);
+      var doelKw = kwartaalVanDatumISO_(datum);
+      uploadMeerdereWwBewijzen_(res.id, 'ww-opslaan-btn', 'ww-upload-voortgang', function(ok) {
+        if (ok) { annuleerBewerk('woonwerk'); selecteerKwartaalStilletjes_('woonwerk', doelKw || S.huidigKw.woonwerk); toonSuccesmelding_('✓ Verplaatsing succesvol ingevoerd!'); }
+      });
+    })
+    .withFailureHandler(function(e){
+      document.getElementById('ww-opslaan-btn').disabled = false;
+      document.getElementById('ww-upload-voortgang').classList.remove('zichtbaar');
+      onFout(e);
+    })
+    .saveRit(rit, 'woonwerk');
+}
+
+function sladienstOp() {
+  verbergFormFout_('d-fout');
+  var datum = document.getElementById('d-datum').value;
+  var best  = document.getElementById('d-bestemming').value.trim();
+  var doel  = document.getElementById('d-doel').value.trim();
+  var km    = parseFloat(document.getElementById('d-km').value);
+  if (!datum || !best || !doel || isNaN(km) || km <= 0) { toonFormFout_('d-fout', 'Vul alle velden in.'); return; }
+
+  var id  = document.getElementById('d-edit-id').value;
+  var rij = parseInt(document.getElementById('d-edit-rij').value) || 0;
+
+  var parkeerticket = document.getElementById('d-parkeerticket').checked;
+  var parkeerBedrag = 0;
+  var bestaandParkeerId = '';
+  if (id) {
+    var bPark = S.ritten.dienst.find(function(x){ return x.id === id; });
+    bestaandParkeerId = bPark ? (bPark.bestandId || '') : '';
+  }
+  if (parkeerticket) {
+    parkeerBedrag = parseFloat(document.getElementById('d-parkeer-bedrag').value) || 0;
+    if (parkeerBedrag <= 0) { toonFormFout_('d-fout', 'Vul het bedrag van het parkeerticket in.'); return; }
+    if (!heeftBewijs('dienst', bestaandParkeerId)) {
+      toonFormFout_('d-fout', 'Voeg een bewijs toe voor het parkeerticket (foto of PDF) vooraleer op te slaan.');
+      return;
+    }
+  }
+
+  var rit = { id: id, rijnummer: rij || undefined, naam: S.naam, datum: datum, bestemming: best, doel: doel, km: km, parkeerBedrag: parkeerBedrag };
+
+  document.getElementById('d-opslaan-btn').disabled = true;
+  if (uploadState.dienst.file) {
+    document.getElementById('d-upload-tekst').textContent = 'Rit opslaan…';
+    document.getElementById('d-upload-voortgang').classList.add('zichtbaar');
+  }
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res.ok) {
+        document.getElementById('d-opslaan-btn').disabled = false;
+        document.getElementById('d-upload-voortgang').classList.remove('zichtbaar');
+        toonFormFout_('d-fout', 'Fout: ' + (res.error||'')); return;
+      }
+      var doelKw = kwartaalVanDatumISO_(datum);
+      if (uploadState.dienst.file) {
+        document.getElementById('d-upload-tekst').textContent = 'Bewijs uploaden naar Drive…';
+        uploadBestandNaDriveOpslaan('dienst', res.id, 'd-opslaan-btn', 'd-upload-voortgang', function(ok) {
+          if (ok) { annuleerBewerk('dienst'); selecteerKwartaalStilletjes_('dienst', doelKw || S.huidigKw.dienst); toonSuccesmelding_('✓ Verplaatsing succesvol ingevoerd!'); }
+        });
+      } else {
+        document.getElementById('d-opslaan-btn').disabled = false;
+        annuleerBewerk('dienst');
+        selecteerKwartaalStilletjes_('dienst', doelKw || S.huidigKw.dienst);
+        verversKwartaalAchtergrond_();
+        toonSuccesmelding_('✓ Verplaatsing succesvol ingevoerd!');
+      }
+    })
+    .withFailureHandler(function(e){
+      document.getElementById('d-opslaan-btn').disabled = false;
+      document.getElementById('d-upload-voortgang').classList.remove('zichtbaar');
+      onFout(e);
+    })
+    .saveRit(rit, 'dienst');
+}
+
+// ── VERWIJDEREN ───────────────────────────────────────────────────────────────
+function verwijderRit(kat, id) {
+  if (!confirm('Wil je dit item verwijderen?')) return;
+  S.ritten[kat] = S.ritten[kat].filter(function(r){ return r.id !== id; });
+  renderRitten(kat);
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (!res.ok) { toonFout('Verwijderen mislukt: '+(res.error||'')); laadRitten(kat, true); }
+      else { laadRitten(kat, true, true); verversKwartaalAchtergrond_(); }
+    })
+    .withFailureHandler(function(err){ laadRitten(kat, true); onFout(err); })
+    .deleteRit(id, kat);
+}
+
+// ── KLIK BUITEN MAANDKIEZER → SLUITEN ────────────────────────────────────────
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.maand-picker')) sluitAlleMaandPickers_();
+});
+
+// ── LIGHTBOX ──────────────────────────────────────────────────────────────────
+var _hoverRaf = null;
+document.addEventListener('mousemove', function(e) {
+  if (_hoverRaf) return;
+  var eX = e.clientX, eY = e.clientY, eTarget = e.target;
+  _hoverRaf = requestAnimationFrame(function() {
+    _hoverRaf = null;
+    var img = eTarget.closest('.rit-bewijs-thumb img, .upload-thumb, .rit-thumb-inline');
+    var popup = document.getElementById('hover-popup');
+    if (!img) { popup.classList.remove('zichtbaar'); return; }
+    var src = img.dataset.fullsrc ? img.dataset.fullsrc : img.src.replace('sz=w120', 'sz=w1600');
+    if (document.getElementById('hover-popup-img').src !== src) {
+      document.getElementById('hover-popup-img').src = src;
+    }
+    var x = eX + 18, y = eY + 18;
+    if (x + 500 > window.innerWidth)  x = eX - 508;
+    if (y + 680 > window.innerHeight) y = eY - 688;
+    popup.style.left = x + 'px';
+    popup.style.top  = y + 'px';
+    popup.classList.add('zichtbaar');
+  });
+});
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function sluitLightbox(evt) {
+  if (!evt || evt.target === document.getElementById('lightbox') || evt.currentTarget.classList.contains('lightbox-sluit')) {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+}
+
+// ── KWARTAALBANNER ────────────────────────────────────────────────────────────
+function toonKwartaalBanner() {
+  var info = S.kwartaalInfo;
+  var banner = document.getElementById('kwartaal-banner');
+  if (!banner || !info) return;
+
+  if (info.testDateActive) {
+    banner.style.display = 'block';
+    banner.style.background = '#ede9fe'; banner.style.color = '#5b21b6'; banner.style.border = '1px solid #c4b5fd';
+    banner.textContent = '🧪 Testmodus actief — gesimuleerde datum: ' + info.today;
+    return;
+  }
+  if (info.isGracePeriod) {
+    banner.style.display = 'block';
+    banner.style.background = '#fef3c7'; banner.style.color = '#92400e'; banner.style.border = '1px solid #fcd34d';
+    banner.textContent = '⏳ Overgangsperiode: je kunt nog aanvragen indienen voor K' + info.prevQuarter + ' ' + info.prevYear + ' tot en met ' + info.prevDeadline + '.';
+    return;
+  }
+  if (info.isPrevLocked) {
+    banner.style.display = 'block';
+    banner.style.background = '#f1f5f9'; banner.style.color = '#475569'; banner.style.border = '1px solid #cbd5e1';
+    banner.textContent = '🔒 K' + info.prevQuarter + ' ' + info.prevYear + ' is afgesloten op ' + info.prevDeadline + '. Nieuwe aanvragen enkel voor het huidig kwartaal.';
+    return;
+  }
+  banner.style.display = 'none';
+}
+
+function kwartaalIsGesloten(kat, kw) {
+  var info = S.kwartaalInfo;
+  if (!info) return false;
+  // Client-side lock check op basis van kwartaalInfo.today
+  var delen = (info.today || '').split('/');
+  if (delen.length !== 3) return false;
+  var today = new Date(parseInt(delen[2]), parseInt(delen[1]) - 1, parseInt(delen[0]));
+  var dl = { 1:[4,10], 2:[7,10], 3:[10,10], 4:[1,10] };
+  var d  = dl[kw];
+  var dlJaar = (kw === 4) ? S.jaar + 1 : S.jaar;
+  var deadline = new Date(dlJaar, d[0] - 1, d[1], 23, 59, 59);
+  return today > deadline;
+}
+
+// ── RITTEN LADEN MET CLIENT-SIDE CACHE ───────────────────────────────────────
+function prefillVorm_(kat, ritten, leesonly) {
+  if (leesonly || !ritten || ritten.length === 0) return;
+  if (kat === 'fiets' && !document.getElementById('fiets-edit-id').value) {
+    lastFietsBestemming = ritten[ritten.length - 1].bestemming || '';
+    localStorage.setItem('lk_fiets_best', lastFietsBestemming);
+    document.getElementById('fiets-bestemming').value = lastFietsBestemming;
+  }
+  if (kat === 'woonwerk' && !document.getElementById('ww-edit-id').value) {
+    var ll = ritten[ritten.length - 1];
+    lastWwVan     = ll.van     || '';
+    lastWwNaar    = ll.naar    || '';
+    lastWwVervoer = ll.vervoer || '';
+    localStorage.setItem('lk_ww_van', lastWwVan);
+    localStorage.setItem('lk_ww_naar', lastWwNaar);
+    localStorage.setItem('lk_ww_vervoer', lastWwVervoer);
+    document.getElementById('ww-van').value     = lastWwVan;
+    document.getElementById('ww-naar').value    = lastWwNaar;
+    document.getElementById('ww-vervoer').value = lastWwVervoer;
+  }
+}
+
+function laadRitten(kat, vernieuw, stilletjes) {
+  var lijstId = kat + '-lijst';
+  var sleutel = cacheSleutel_(kat);
+  var leesonly = isLeesonly_(S.huidigKw[kat], S.weergaveJaar || S.jaar);
+
+  if (!vernieuw && rittenCache[sleutel]) {
+    S.ritten[kat] = rittenCache[sleutel];
+    prefillVorm_(kat, rittenCache[sleutel], leesonly);
+    renderRitten(kat);
+    return;
+  }
+
+  if (!stilletjes) {
+    document.getElementById(lijstId).innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  }
+  google.script.run
+    .withSuccessHandler(function(ritten) {
+      ritten = ritten || [];
+      S.ritten[kat]        = ritten;
+      rittenCache[sleutel] = ritten;
+      prefillVorm_(kat, ritten, leesonly);
+      renderRitten(kat);
+    })
+    .withFailureHandler(onFout)
+    .getRitten(kat, S.weergaveJaar || S.jaar, S.huidigKw[kat]);
+}
+
+// ── JAAR NAVIGATIE + LEESONLY ─────────────────────────────────────────────────
+function isLeesonly_(kw, jaar) {
+  var j = (jaar !== undefined) ? jaar : (S.weergaveJaar || S.jaar);
+  if (j < S.jaar) return true;
+  if (j > S.jaar) return false;
+  var info = S.kwartaalInfo;
+  if (!info) return false;
+  var curQ = info.currentQuarter;
+  if (kw >= curQ) return false;
+  var prevQ    = info.prevQuarter;
+  var prevYear = info.prevYear || S.jaar;
+  if (prevYear === S.jaar && kw === prevQ) return !!info.isPrevLocked;
+  return true;
+}
+
+function navigeerJaar(kat, delta) {
+  var huidig = S.weergaveJaar || S.jaar;
+  var nieuw = huidig + delta;
+  if (nieuw > S.jaar || nieuw < S.jaar - 5) return;
+  S.weergaveJaar = nieuw;
+  updateJaarSchakelaar(kat);
+  updateFormulierZichtbaarheid(kat);
+  laadRitten(kat, true);
+}
+
+function updateJaarSchakelaar(kat) {
+  var j = S.weergaveJaar || S.jaar;
+  var label      = document.getElementById(kat + '-jaar-label');
+  var vorigeBtn  = document.getElementById(kat + '-jaar-vorige');
+  var volgendeBtn = document.getElementById(kat + '-jaar-volgende');
+  if (label)       label.textContent  = j;
+  if (vorigeBtn)   vorigeBtn.disabled  = (j <= S.jaar - 5);
+  if (volgendeBtn) volgendeBtn.disabled = (j >= S.jaar);
+}
+
+function updateFormulierZichtbaarheid(kat) {
+  var leesonly = isLeesonly_(S.huidigKw[kat], S.weergaveJaar || S.jaar);
+  var formIds  = { fiets: 'fiets-form', woonwerk: 'ww-form', dienst: 'd-form' };
+  var form     = document.getElementById(formIds[kat]);
+  var banner   = document.getElementById(kat + '-leesonly-banner');
+  if (form)   form.style.display   = leesonly ? 'none' : '';
+  if (banner) banner.style.display = leesonly ? ''     : 'none';
+}
+
+// ── HULPFUNCTIES ──────────────────────────────────────────────────────────────
+var _toastTimer = null;
+function toonSuccesmelding_(tekst) {
+  var el = document.getElementById('toast-melding');
+  if (!el) return;
+  el.textContent = tekst;
+  el.classList.add('zichtbaar');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() {
+    el.classList.remove('zichtbaar');
+    _toastTimer = null;
+  }, 3000);
+}
+
+function toonScherm(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('aktief'); });
+  document.getElementById(id).classList.add('aktief');
+}
+
+function toonFout(msg) {
+  document.getElementById('fout-bericht').textContent = '⚠️ ' + msg;
+  toonScherm('screen-fout');
+}
+
+function onFout(err) {
+  toonFout('Er is een fout opgetreden: ' + (err.message || JSON.stringify(err)));
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatIBAN(el) {
+  var raw = el.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 16);
+  el.value = raw.match(/.{1,4}/g) ? raw.match(/.{1,4}/g).join(' ') : raw;
+}
+
+function valideerIBAN_(ibanRaw) {
+  var iban = (ibanRaw || '').replace(/\s+/g, '').toUpperCase();
+  if (iban.length < 15 || iban.length > 34) return false;
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(iban)) return false;
+  var herrangschikt = iban.slice(4) + iban.slice(0, 4);
+  var numeriek = herrangschikt.replace(/[A-Z]/g, function(c) { return (c.charCodeAt(0) - 55).toString(); });
+  var rest = 0;
+  for (var i = 0; i < numeriek.length; i++) rest = (rest * 10 + parseInt(numeriek[i], 10)) % 97;
+  return rest === 1;
+}
+
+function toonIBANFout_() {
+  var el   = document.getElementById('p-iban');
+  var fout = document.getElementById('p-iban-fout');
+  var val  = el.value.trim();
+  var ongeldig = val && !valideerIBAN_(val);
+  fout.style.display      = ongeldig ? '' : 'none';
+  el.style.borderColor    = ongeldig ? '#d97706' : '';
+}
+
+function valideerDatum(el, kat) {
+  if (!el.value) return;
+  var delen = el.value.split('-');
+  var jaar  = parseInt(delen[0]);
+  if (delen[0].length !== 4 || isNaN(jaar) || jaar < 2000 || jaar > 2099) {
+    el.value = vandaagISO_();
+    toonFormFout_('d-fout', 'Gebruik een geldig 4-cijferig jaar (2000–2099).');
+  }
+  if (kat) updateKwartaalIndicator_(kat, el.value);
+}
+
+function toggleDienstBewijs() {
+  var checked = document.getElementById('d-parkeerticket').checked;
+  document.getElementById('d-bewijs-wrap').style.display = checked ? '' : 'none';
+  if (!checked) {
+    resetUploadZone('dienst');
+    document.getElementById('d-bestaand-bewijs').style.display = 'none';
+    document.getElementById('d-parkeer-bedrag').value = '';
+  }
+}
+
+function normaliseerNaamVoorVergelijking(naam) {
+  return (naam || '').toLowerCase().trim().split(/\s+/).sort().join(' ');
+}
+
+function formatRijksreg(el) {
+  var d = el.value.replace(/\D/g, '').slice(0, 11);
+  var s = d.slice(0, Math.min(2, d.length));
+  if (d.length > 2) s += '.' + d.slice(2, Math.min(4, d.length));
+  if (d.length > 4) s += '.' + d.slice(4, Math.min(6, d.length));
+  if (d.length > 6) s += '-' + d.slice(6, Math.min(9, d.length));
+  if (d.length > 9) s += '.' + d.slice(9, 11);
+  el.value = s;
+}
+</script>
+</body>
+</html>
