@@ -193,60 +193,91 @@ function onEditJaar(e) {
         e.range.getColumn() !== goedkKolMap[sheetNaam] &&
         e.range.getColumn() !== checkKolMap[sheetNaam] &&
         e.range.getColumn() !== beeldKolMap[sheetNaam]) {
-      var manRij      = e.range.getRow();
       // Maandkolom (kolom 6) in Fiets en Woon-Werk: zet tekstopmaak zodat Sheets de waarde
       // niet als datum herkent en rechts uitlijnt
       var isMaandBlad = (sheetNaam === CONFIG.SHEETS.FIETSVERGOEDING || sheetNaam === CONFIG.SHEETS.WOON_WERK);
       if (isMaandBlad && e.range.getColumn() === 6) {
         e.range.setNumberFormat('@').setHorizontalAlignment('left');
       }
-      var manData     = sheet.getRange(manRij, 1, 1, 5).getValues()[0];
-      var manId       = (manData[0]||'').toString().trim();
-      var manNaam     = (manData[2]||'').toString().trim();
-      var manJaar     = manData[3];
-      var manKw       = manData[4];
-      var manEmail    = (manData[1]||'').toString().trim();
 
-      // Handmatig ingetikte rij zonder verborgen kolommen A (id) en B (e-mail): aanvullen
-      if (manNaam && !manId && !manEmail) {
-        sheet.getRange(manRij, 1).setValue(generateId_());
-        var manGevonden = vindEmailVoorNaam_(getSS_(), manNaam);
-        if (manGevonden.email) {
-          sheet.getRange(manRij, 2).setValue(manGevonden.email);
-          manEmail = manGevonden.email;
+      var manCateg     = (sheetNaam === CONFIG.SHEETS.FIETSVERGOEDING) ? 'fiets'
+                       : (sheetNaam === CONFIG.SHEETS.WOON_WERK)       ? 'woonwerk' : 'dienst';
+      var bestandKol   = bestandKolMap[sheetNaam]; // rechterrand van de inhoudskolommen (I voor Fiets, K voor Woon-Werk/Dienst)
+      // Verplichte rechtergrens voor de "rij is volledig"-controle, per tabblad instelbaar:
+      // bij Dienstverplaatsing zijn J (parkeerkost) en K (bestand) optioneel, dus daar ligt
+      // de grens op I in plaats van op bestandKol (K).
+      var verplichtKol = (sheetNaam === CONFIG.SHEETS.DIENSTVERPLAATSING) ? 9 : bestandKol;
+      var ssManueel    = getSS_();
+      var manRijStart  = e.range.getRow();
+      var manRijEinde  = manRijStart + e.range.getNumRows() - 1;
+      var manMoetSorteren  = false;
+      var manMoetVerversen = false;
+
+      // Bij plakken kan het edit-event meerdere rijen beslaan: elke geraakte rij apart
+      // controleren (typen en plakken dus gelijk behandelen) en celwaarden vers uitlezen.
+      for (var manRij = manRijStart; manRij <= manRijEinde; manRij++) {
+        var manData     = sheet.getRange(manRij, 1, 1, 5).getValues()[0];
+        var manId       = (manData[0]||'').toString().trim();
+        var manNaam     = (manData[2]||'').toString().trim();
+        var manJaar     = manData[3];
+        var manKw       = manData[4];
+        var manEmail    = (manData[1]||'').toString().trim();
+
+        // Handmatig ingetikte rij zonder verborgen kolommen A (id) en B (e-mail): aanvullen
+        if (manNaam && !manId && !manEmail) {
+          sheet.getRange(manRij, 1).setValue(generateId_());
+          var manGevonden = vindEmailVoorNaam_(getSS_(), manNaam);
+          if (manGevonden.email) {
+            sheet.getRange(manRij, 2).setValue(manGevonden.email);
+            manEmail = manGevonden.email;
+          }
+          // Match gevonden (ook bij omgekeerde volgorde, bv. "Marjan Depuydt"): kolom C
+          // rechtzetten naar de officiële schrijfwijze uit Personeelsgegevens kolom B.
+          if (manGevonden.naam && manGevonden.naam !== manNaam) {
+            sheet.getRange(manRij, 3).setValue(manGevonden.naam);
+            manNaam = manGevonden.naam;
+          }
         }
-        // Match gevonden (ook bij omgekeerde volgorde, bv. "Marjan Depuydt"): kolom C
-        // rechtzetten naar de officiële schrijfwijze uit Personeelsgegevens kolom B.
-        if (manGevonden.naam && manGevonden.naam !== manNaam) {
-          sheet.getRange(manRij, 3).setValue(manGevonden.naam);
-          manNaam = manGevonden.naam;
+
+        if (!(manNaam && manJaar && manKw)) continue;
+        manMoetVerversen = true;
+
+        // Goedkeuringswaarde: controleer beide kolommen
+        var manGoedkVal = (sheet.getRange(manRij, goedkKolMap[sheetNaam]).getValue()||'').toString().trim()
+                       || (sheet.getRange(manRij, beeldKolMap[sheetNaam]).getValue()||'').toString().trim();
+
+        // Rij "klaar om af te werken": inhoudskolommen C t/m verplichtKol (I voor Fiets en
+        // Dienst, K voor Woon-Werk) staan allemaal vol — niet langer afhankelijk van welke
+        // kolom precies bewerkt werd, zodat handmatige invoer/plakken zonder de optionele
+        // kolommen ook sorteert.
+        var manCompleet = true;
+        if (verplichtKol) {
+          var manInhoud = sheet.getRange(manRij, 3, 1, verplichtKol - 2).getValues()[0];
+          for (var mi = 0; mi < manInhoud.length; mi++) {
+            if ((manInhoud[mi]||'').toString().trim() === '') { manCompleet = false; break; }
+          }
         }
-      }
-      // Goedkeuringswaarde: controleer beide kolommen
-      var manGoedkVal = (sheet.getRange(manRij, goedkKolMap[sheetNaam]).getValue()||'').toString().trim()
-                     || (sheet.getRange(manRij, beeldKolMap[sheetNaam]).getValue()||'').toString().trim();
-      var manCateg    = (sheetNaam === CONFIG.SHEETS.FIETSVERGOEDING) ? 'fiets'
-                      : (sheetNaam === CONFIG.SHEETS.WOON_WERK)       ? 'woonwerk' : 'dienst';
-      if (manNaam && manJaar && manKw) {
-        var bestandKol    = bestandKolMap[sheetNaam];
-        var isBestandEdit = bestandKol && e.range.getColumn() === bestandKol &&
-                            (sheet.getRange(manRij, bestandKol).getValue()||'').toString().trim();
-        if (isBestandEdit) {
-          // Bestand-kolom ingevuld: goedkeuring instellen (enkel als nog niet gezet) + sorteren
-          var ssManueel = getSS_();
+
+        if (manCompleet && !manGoedkVal) {
+          // Rij is volledig en nog niet afgewerkt: goedkeuring instellen + nadien sorteren
           var manDomein = ((bouwPersonenMap_(ssManueel)[manNaam]||{}).domein||'').trim();
           if (!manDomein && manEmail) manDomein = (bouwEmailDomeinMap_(ssManueel)[manEmail.toLowerCase()]||'').trim();
-          if (!manGoedkVal) zetGoedkeuringInOpRij_(sheet, manRij, manCateg, isGroeneCheckKol_(manNaam, manDomein));
-          sorteerSheet_(sheet, bouwEmailNaamMap_(ssManueel));
-          var _ckkMan = checkKolVoorSheet_(sheetNaam); if (_ckkMan) { try { kleurBeeldCheckKol_(ssManueel, sheet, _ckkMan); } catch(_e) {} }
-          SpreadsheetApp.getActiveSpreadsheet().toast('Rijen hergesorteerd op naam — controleer de positie van de nieuwe rij.', 'Alfabetisch gesorteerd ↕', 4);
-          verversKwartaaloverzichtAlsBestaat_();
+          zetGoedkeuringInOpRij_(sheet, manRij, manCateg, isGroeneCheckKol_(manNaam, manDomein));
+          manMoetSorteren = true;
         } else {
-          // Andere kolom bewerkt: cache wissen + kwartaaloverzicht verversen
+          // Nog niet volledig, of al afgewerkt: enkel cache wissen
           if (manEmail) invalideerRittenCache_(manEmail, manCateg, parseInt(manJaar), parseInt(manKw));
-          verversKwartaaloverzichtAlsBestaat_();
         }
       }
+
+      if (manMoetSorteren) {
+        // Eén keer sorteren ná de hele lus: sorteerSheet_ herschikt alle rijen op het tabblad,
+        // dus tussentijds sorteren per rij zou de overige rij-indices laten verschuiven.
+        sorteerSheet_(sheet, bouwEmailNaamMap_(ssManueel));
+        var _ckkMan = checkKolVoorSheet_(sheetNaam); if (_ckkMan) { try { kleurBeeldCheckKol_(ssManueel, sheet, _ckkMan); } catch(_e) {} }
+        SpreadsheetApp.getActiveSpreadsheet().toast('Rijen hergesorteerd op naam — controleer de positie van de nieuwe rij.', 'Alfabetisch gesorteerd ↕', 4);
+      }
+      if (manMoetVerversen) verversKwartaaloverzichtAlsBestaat_();
     }
 
     // Aanpak: klik op gekleurde knop (col 1) om sectie te tonen
