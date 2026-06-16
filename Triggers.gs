@@ -201,10 +201,27 @@ function onEditJaar(e) {
         e.range.setNumberFormat('@').setHorizontalAlignment('left');
       }
       var manData     = sheet.getRange(manRij, 1, 1, 5).getValues()[0];
+      var manId       = (manData[0]||'').toString().trim();
       var manNaam     = (manData[2]||'').toString().trim();
       var manJaar     = manData[3];
       var manKw       = manData[4];
       var manEmail    = (manData[1]||'').toString().trim();
+
+      // Handmatig ingetikte rij zonder verborgen kolommen A (id) en B (e-mail): aanvullen
+      if (manNaam && !manId && !manEmail) {
+        sheet.getRange(manRij, 1).setValue(generateId_());
+        var manGevonden = vindEmailVoorNaam_(getSS_(), manNaam);
+        if (manGevonden.email) {
+          sheet.getRange(manRij, 2).setValue(manGevonden.email);
+          manEmail = manGevonden.email;
+        }
+        // Match gevonden (ook bij omgekeerde volgorde, bv. "Marjan Depuydt"): kolom C
+        // rechtzetten naar de officiële schrijfwijze uit Personeelsgegevens kolom B.
+        if (manGevonden.naam && manGevonden.naam !== manNaam) {
+          sheet.getRange(manRij, 3).setValue(manGevonden.naam);
+          manNaam = manGevonden.naam;
+        }
+      }
       // Goedkeuringswaarde: controleer beide kolommen
       var manGoedkVal = (sheet.getRange(manRij, goedkKolMap[sheetNaam]).getValue()||'').toString().trim()
                      || (sheet.getRange(manRij, beeldKolMap[sheetNaam]).getValue()||'').toString().trim();

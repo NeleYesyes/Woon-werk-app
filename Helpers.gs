@@ -30,6 +30,24 @@ function bouwEmailNaamMap_(ss) {
   return map;
 }
 
+function vindEmailVoorNaam_(ss, naam) {
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) return { email: '', naam: '' };
+  var data     = sheet.getDataRange().getValues();
+  var gevonden = '';
+  var gevondenNaam = '';
+  for (var i = 1; i < data.length; i++) {
+    // isZelfdePersoon_ vergelijkt woord-ongeordend, dus "Voornaam Familienaam" matcht ook
+    // met kolom B ("Familienaam Voornaam") — geen apart omgekeerde-volgorde-vergelijking nodig.
+    if (isZelfdePersoon_((data[i][1]||'').toString(), naam)) {
+      gevonden     = (data[i][7]||'').toString().trim(); // letterlijk uit kolom H — nooit opgebouwd uit de naam
+      gevondenNaam = (data[i][1]||'').toString().trim(); // officiële schrijfwijze, letterlijk uit kolom B
+      // geen break: laatste rij wint, zelfde conventie als bouwEmailNaamMap_ hierboven
+    }
+  }
+  return { email: gevonden, naam: gevondenNaam };
+}
+
 function sorteerSheet_(sheet, persMap) {
   var lastRow = sheet.getLastRow();
   var numCols = sheet.getLastColumn();
