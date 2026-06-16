@@ -89,7 +89,10 @@ function stelGoedkeuringKolommenIn() {
       var kleur    = goedkeuringStatusKleur_(bronWaarde);
       var doelKol  = isBeeld ? inst.beeldKol : inst.goedkKol;
       var leegKol  = isBeeld ? inst.goedkKol : inst.beeldKol;
-      sheet.getRange(rijnr, doelKol).setValue(bronWaarde).setBackground(kleur.bg).setFontColor(kleur.txt).setDataValidation(statusValidatie);
+      var doelCelSetup = sheet.getRange(rijnr, doelKol).setValue(bronWaarde).setBackground(kleur.bg).setFontColor(kleur.txt);
+      // 'Beeld' is een overgebleven plaatshouder uit de andere kolom, geen echte status: geen keuzelijst erop
+      if (bronWaarde === 'Beeld') doelCelSetup.clearDataValidations();
+      else doelCelSetup.setDataValidation(statusValidatie);
       // Nico-kolom voor Beeld-rijen: 'Beeld' in witte letter zodat hyperlink niet visueel doorloopt
       var leegCelSetup = sheet.getRange(rijnr, leegKol);
       leegCelSetup.clearDataValidations().setBackground('#ffffff');

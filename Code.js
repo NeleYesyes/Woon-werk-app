@@ -243,7 +243,10 @@ function zetGoedkeuringInOpRij_(sheet, rijnr, categorie, isBeeld) {
   else if (huidig === 'Nee') huidig = 'Nee, afgekeurd';
   else if (!huidig)           huidig = 'Ingediend';
   var kleur = goedkeuringStatusKleur_(huidig);
-  goedkCel.setValue(huidig).setBackground(kleur.bg).setFontColor(kleur.txt).setDataValidation(validatie);
+  goedkCel.setValue(huidig).setBackground(kleur.bg).setFontColor(kleur.txt);
+  // 'Beeld' is een overgebleven plaatshouder uit de andere kolom, geen echte status: geen keuzelijst erop
+  if (huidig === 'Beeld') goedkCel.clearDataValidations();
+  else goedkCel.setDataValidation(validatie);
   // Lege goedkeuringskolom: 'Beeld' in witte letter voor Beeld-rijen (blokkeert doorloop van hyperlink)
   var leegCel = sheet.getRange(rijnr, leegKol);
   leegCel.clearDataValidations().setBackground('#ffffff');
