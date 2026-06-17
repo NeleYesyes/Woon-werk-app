@@ -562,10 +562,13 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
   sheet.setRowHeight(rij, 28); rij++;
 
   var tariefRij = rij;
-  headers.forEach(function(h, k) {
-    sheet.getRange(rij, k+1).setValue(h).setFontWeight('bold').setFontSize(8).setFontColor('#475569').setBackground('#e2e8f0').setVerticalAlignment('middle');
-  });
-  sheet.getRange(rij, 1, 1, 7).setBackground('#e2e8f0');
+  var headerRange = sheet.getRange(rij, 1, 1, 7);
+  headerRange.setValues([headers]);
+  headerRange.setBackgrounds([headers.map(function() { return '#e2e8f0'; })]);
+  headerRange.setFontColors([headers.map(function() { return '#475569'; })]);
+  headerRange.setFontWeights([headers.map(function() { return 'bold'; })]);
+  headerRange.setFontSizes([headers.map(function() { return 8; })]);
+  headerRange.setVerticalAlignments([headers.map(function() { return 'middle'; })]);
   if (tarief !== null && tarief !== undefined) {
     sheet.getRange(tariefRij, 8).setValue(tarief).setNumberFormat('"€ "#,##0.0000').setFontSize(9).setFontWeight('bold')
       .setFontColor('#7d2568').setBackground('#fce7f5').setHorizontalAlignment('center').setVerticalAlignment('middle');
