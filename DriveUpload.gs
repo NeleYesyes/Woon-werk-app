@@ -1,9 +1,9 @@
 // ─── BEWIJS UPLOADEN ─────────────────────────────────────────────────────────
 
-function uploadBewijs(base64Data, mimeType, bestandsnaam, ritId, categorie) {
+function uploadBewijs(base64Data, mimeType, bestandsnaam, ritId, categorie, gedeeldeMap, gedeeldePersonenMap, gedeeldeEmailDomeinMap) {
   try {
     var email  = getEmail_();
-    var folder = DriveApp.getFolderById(CONFIG.DRIVE_MAP_ID);
+    var folder = gedeeldeMap || DriveApp.getFolderById(CONFIG.DRIVE_MAP_ID);
     var blob   = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, bestandsnaam);
     var file   = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -71,10 +71,12 @@ function uploadBewijs(base64Data, mimeType, bestandsnaam, ritId, categorie) {
             var vervolRijNr = insertNaRij + 1;
             sheet.getRange(vervolRijNr, 1, 1, vervolRij.length).setValues([vervolRij]);
             try {
-              var vervolNaam   = (data[i][2]||'').toString().trim();
-              var vervolEmail  = (data[i][1]||'').toString().toLowerCase().trim();
-              var vervolDomein = ((bouwPersonenMap_(ss)[vervolNaam]||{}).domein||'').trim();
-              if (!vervolDomein && vervolEmail) vervolDomein = (bouwEmailDomeinMap_(ss)[vervolEmail]||'').trim();
+              var vervolNaam      = (data[i][2]||'').toString().trim();
+              var vervolEmail     = (data[i][1]||'').toString().toLowerCase().trim();
+              var _personenMap    = gedeeldePersonenMap    || bouwPersonenMap_(ss);
+              var _emailDomeinMap = gedeeldeEmailDomeinMap || bouwEmailDomeinMap_(ss);
+              var vervolDomein = ((_personenMap[vervolNaam]||{}).domein||'').trim();
+              if (!vervolDomein && vervolEmail) vervolDomein = (_emailDomeinMap[vervolEmail]||'').trim();
               var isBeeldVervol = isGroeneCheckKol_(vervolNaam, vervolDomein);
               zetGoedkeuringInOpRij_(sheet, vervolRijNr, 'woonwerk', isBeeldVervol);
               var _ckkV = checkKolVoorSheet_(sheet.getName());
@@ -98,8 +100,12 @@ function uploadBewijs(base64Data, mimeType, bestandsnaam, ritId, categorie) {
 
 function uploadBewijzenBatch(data, ritId, categorie) {
   try {
+    var ss              = getSS_();
+    var gedeeldeMap     = DriveApp.getFolderById(CONFIG.DRIVE_MAP_ID);
+    var personenMap     = bouwPersonenMap_(ss);
+    var emailDomeinMap  = bouwEmailDomeinMap_(ss);
     for (var i = 0; i < data.length; i++) {
-      var res = uploadBewijs(data[i].base64, data[i].mimeType, data[i].naam, ritId, categorie);
+      var res = uploadBewijs(data[i].base64, data[i].mimeType, data[i].naam, ritId, categorie, gedeeldeMap, personenMap, emailDomeinMap);
       if (!res.ok) return res;
     }
     return { ok: true };
