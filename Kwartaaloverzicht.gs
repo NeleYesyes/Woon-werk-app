@@ -590,17 +590,41 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
   } else {
     var grandTot5 = 0, grandTot6 = 0;
     var heeftCol6 = groepen[0].ritten[0].col6 !== null;
+
+    // Batch-verzamelaars voor gewone kolommen 1–5 en 7 (kolom 6, 8 en 11 blijven per-cel)
+    var blokVals    = [];
+    var blokBgs     = [];
+    var blokFc      = [];
+    var blokIban    = [];
+    var blokIbanBgs = [];
+    var blokIbanFc  = [];
+    var startRijBlok = rij;
+
     groepen.forEach(function(g) {
       var tot5 = g.ritten.reduce(function(s,r){ return s+(r.col5||0); }, 0);
       var tot6 = heeftCol6 ? g.ritten.reduce(function(s,r){ return s+(r.col6||0); }, 0) : null;
       grandTot5 += tot5; if (tot6 !== null) grandTot6 += tot6;
 
+      // Rij-brede achtergrond (identiek aan vóór; raakt ook col 6 — bewust ongewijzigd)
       sheet.getRange(rij, 1, 1, 7).setBackground('#ffffff');
-      sheet.getRange(rij, 1).setValue(g.naam).setFontWeight('normal').setFontSize(9).setFontColor('#334155');
-      sheet.getRange(rij, 2).setValue(g.adres).setBackground('#ffffff').setFontWeight('bold').setFontSize(9).setFontColor('#26295a');
-      sheet.getRange(rij, 3).setValue(g.pcGem).setBackground('#ffffff').setFontSize(8).setFontColor('#94a3b8');
-      sheet.getRange(rij, 4).setValue(g.ritten[0].col4).setFontSize(9).setFontColor('#334155');
-      sheet.getRange(rij, 5).setValue(tot5).setNumberFormat(g.fmt5).setFontWeight('bold').setFontSize(9).setFontColor('#26295a');
+
+      // Gewone kolommen 1–5 en 7: waarden + kleuren verzamelen voor post-lus batch
+      blokVals.push([g.naam, g.adres, g.pcGem, g.ritten[0].col4, tot5]);
+      blokBgs.push( ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']);
+      blokFc.push(  ['#334155', '#26295a', '#94a3b8', '#334155', '#26295a']);
+      blokIban.push([g.iban]);
+      blokIbanBgs.push(['#ffffff']);
+      blokIbanFc.push(['#26295a']);
+
+      // Per-cel opmaak die per kolom verschilt (weight, size, numberFormat) — blijft per-cel
+      sheet.getRange(rij, 1).setFontWeight('normal').setFontSize(9);
+      sheet.getRange(rij, 2).setBackground('#ffffff').setFontWeight('bold').setFontSize(9);
+      sheet.getRange(rij, 3).setBackground('#ffffff').setFontSize(8);
+      sheet.getRange(rij, 4).setFontSize(9);
+      sheet.getRange(rij, 5).setNumberFormat(g.fmt5).setFontWeight('bold').setFontSize(9);
+      sheet.getRange(rij, 7).setFontSize(9).setFontWeight('bold');
+
+      // Kolom 6 — ONGEWIJZIGD (formule / woon-werk bedrag)
       var isNico = (sectie === 'fiets' && g.adres === 'Logghe Nico');
       if (isNico) {
         sheet.getRange(rij, 8).setValue(nicoTarief || 0)
@@ -614,9 +638,9 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       } else if (tot6 !== null) {
         sheet.getRange(rij, 6).setValue(tot6).setNumberFormat(g.fmt6).setFontWeight('bold').setFontSize(9).setFontColor('#26295a');
       }
-      sheet.getRange(rij, 7).setValue(g.iban).setFontSize(9).setFontWeight('bold').setFontColor('#26295a');
       sheet.setRowHeight(rij, 22);
 
+      // Kolom 11 — ONGEWIJZIGD (status, datavalidatie)
       var sleutel = jaar+'|'+kw+'|'+sectie+'|'+g.naam;
       var bestaandeStatus = (statusLookup && statusLookup[sleutel]) ? statusLookup[sleutel] : STATUS_INGEDIEND;
       sheet.getRange(rij, 11).setValue(bestaandeStatus).setDataValidation(statusValidatie)
@@ -624,8 +648,24 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
       rij++;
 
+      // Spacer-rij — logica ongewijzigd; lege rij in batch-arrays
+      blokVals.push(['', '', '', '', '']);
+      blokBgs.push( ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']);
+      blokFc.push(  ['#334155', '#26295a', '#94a3b8', '#334155', '#26295a']);
+      blokIban.push(['']);
+      blokIbanBgs.push(['#ffffff']);
+      blokIbanFc.push(['#26295a']);
       sheet.getRange(rij, 1, 1, 7).setBackground('#ffffff'); sheet.setRowHeight(rij, 6); rij++;
     });
+
+    // Gebatched schrijven: gewone kolommen 1–5 en 7 in één blok over alle personen
+    if (blokVals.length > 0) {
+      var aantalRijen = blokVals.length;
+      sheet.getRange(startRijBlok, 1, aantalRijen, 5)
+        .setValues(blokVals).setBackgrounds(blokBgs).setFontColors(blokFc);
+      sheet.getRange(startRijBlok, 7, aantalRijen, 1)
+        .setValues(blokIban).setBackgrounds(blokIbanBgs).setFontColors(blokIbanFc);
+    }
   }
   return rij;
 }
