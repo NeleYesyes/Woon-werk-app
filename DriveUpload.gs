@@ -308,7 +308,7 @@ function verwijderWwBewijs(ritId, teVerwijderenUrl) {
       var prefix = '_' + ritId + '_';
       if (rId.indexOf(prefix) !== 0) continue;
       var nr = parseInt(rId.slice(prefix.length));
-      if (!isNaN(nr) && nr >= 2 && nr <= 4) {
+      if (!isNaN(nr) && nr >= 2) {
         vervolRijen.push({ volgNr: nr, sheetRij: r + 1 });
       }
     }

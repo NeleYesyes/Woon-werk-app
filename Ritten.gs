@@ -208,7 +208,8 @@ function deleteRit(id, categorie) {
       var jId    = (data[j][0]||'').toString();
       var jEmail = (data[j][1]||'').toString().toLowerCase().trim();
       if (jEmail !== email.toLowerCase().trim()) continue;
-      if (jId !== id && jId !== '_'+id+'_2' && jId !== '_'+id+'_3' && jId !== '_'+id+'_4') continue;
+      var _jPfx = '_' + id + '_'; var _jNr = parseInt(jId.slice(_jPfx.length));
+      if (jId !== id && !(jId.indexOf(_jPfx) === 0 && !isNaN(_jNr) && _jNr >= 2)) continue;
       var fid = fileIdUitUrl_((data[j][bestandKolIdx]||'').toString().trim());
       if (fid) teTrashIds.push(fid);
     }
@@ -219,7 +220,8 @@ function deleteRit(id, categorie) {
       var rijEmail = (data[i][1]||'').toString().toLowerCase().trim();
       if (rijEmail !== email.toLowerCase().trim()) continue;
       var isHoofd  = rijId === id;
-      var isVervol = rijId === '_' + id + '_2' || rijId === '_' + id + '_3' || rijId === '_' + id + '_4';
+      var _vPfx = '_' + id + '_'; var _vNr = parseInt(rijId.slice(_vPfx.length));
+      var isVervol = rijId.indexOf(_vPfx) === 0 && !isNaN(_vNr) && _vNr >= 2;
       if (!isHoofd && !isVervol) continue;
       if (isHoofd) { jaar = parseInt(data[i][3]); kwartaal = parseInt(data[i][4]); }
       sheet.deleteRow(i + 1);
