@@ -669,14 +669,14 @@
         </div>
         <!-- BEWIJS (meerdere bestanden) -->
         <div class="form-group">
-          <label class="field-label">Bewijs(en) <span class="optioneel">max. 4 bestanden</span></label>
+          <label class="field-label">Bewijs(en) <span class="optioneel">max. 4 per keer</span></label>
           <div class="upload-tip">&#128161; Max. 4 tickets per foto voor betere leesbaarheid voor de controle</div>
           <div id="ww-bestaand-bewijs" class="bestaand-bewijs-wrap" style="display:none"></div>
           <div class="upload-zone" id="ww-upload-zone" onclick="document.getElementById('ww-bestand').click()">
             <input type="file" id="ww-bestand" accept="image/*,.pdf" multiple style="display:none" onchange="toonWwMultiPreview_(this)">
             <div class="upload-placeholder" id="ww-upload-placeholder">
               <span class="upload-icoon">&#128206;</span>
-              Klik om bestanden te kiezen (max. 4 — houd Ctrl ingedrukt voor meerdere)
+              Klik om bestanden te kiezen (max. 4 per keer — houd Ctrl ingedrukt voor meerdere)
             </div>
             <div class="upload-preview" id="ww-upload-preview"></div>
           </div>
@@ -1567,12 +1567,10 @@ function uploadNaarDriveViaUrl_(uploadUrl, dataUrl) {
 function toonWwMultiPreview_(input) {
   var files = input.files;
   if (!files || files.length === 0) return;
-  var beschikbaar = 4 - uploadState.woonwerk.length;
-  if (beschikbaar <= 0) { alert('Maximum 4 bewijzen bereikt.'); input.value = ''; return; }
-  if (files.length > beschikbaar) {
-    alert('Je selecteerde ' + files.length + ' bestanden, maar er ' + (beschikbaar === 1 ? 'kan er nog maar 1 worden toegevoegd' : 'kunnen er nog maar ' + beschikbaar + ' worden toegevoegd') + '. Alleen de eerste ' + beschikbaar + ' worden gebruikt.');
+  if (files.length > 4) {
+    alert('Je selecteerde ' + files.length + ' bestanden. Alleen de eerste 4 worden gebruikt.');
   }
-  var max  = Math.min(files.length, beschikbaar);
+  var max  = Math.min(files.length, 4);
   var nieuw = new Array(max).fill(null);
   var klaar = 0;
   function controleer() {
@@ -1624,8 +1622,7 @@ function renderWwThumbnails_() {
     html += '</div>';
   });
   html += '</div>';
-  var linkTekst = uploadState.woonwerk.length < 4 ? '+ Nog bestanden toevoegen' : 'Bestanden wijzigen';
-  html += '<span class="upload-vervang" onclick="event.stopPropagation();document.getElementById(\'ww-bestand\').click()">' + linkTekst + '</span>';
+  html += '<span class="upload-vervang" onclick="event.stopPropagation();document.getElementById(\'ww-bestand\').click()">+ Nog bestanden toevoegen (max. 4 per keer)</span>';
   prev.innerHTML = html;
   prev.classList.add('zichtbaar');
 }
