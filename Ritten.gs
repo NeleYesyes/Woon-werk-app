@@ -200,6 +200,19 @@ function deleteRit(id, categorie) {
 
     var data    = sheet.getDataRange().getValues();
     var jaar = 0, kwartaal = 0;
+
+    // Verzamel bestand-IDs vóór het wissen (daarna zijn de celwaarden weg)
+    var bestandKolIdx = (categorie === 'fiets') ? 8 : 10;
+    var teTrashIds = [];
+    for (var j = 1; j < data.length; j++) {
+      var jId    = (data[j][0]||'').toString();
+      var jEmail = (data[j][1]||'').toString().toLowerCase().trim();
+      if (jEmail !== email.toLowerCase().trim()) continue;
+      if (jId !== id && jId !== '_'+id+'_2' && jId !== '_'+id+'_3' && jId !== '_'+id+'_4') continue;
+      var fid = fileIdUitUrl_((data[j][bestandKolIdx]||'').toString().trim());
+      if (fid) teTrashIds.push(fid);
+    }
+
     // Verwijder vervolgrijen (woonwerk multi-bewijs) én hoofdrij, van onder naar boven
     for (var i = data.length - 1; i >= 1; i--) {
       var rijId    = (data[i][0]||'').toString();
@@ -210,6 +223,11 @@ function deleteRit(id, categorie) {
       if (!isHoofd && !isVervol) continue;
       if (isHoofd) { jaar = parseInt(data[i][3]); kwartaal = parseInt(data[i][4]); }
       sheet.deleteRow(i + 1);
+    }
+
+    // Stuur bijbehorende Drive-bestanden naar de prullenbak (defensief per bestand)
+    for (var t = 0; t < teTrashIds.length; t++) {
+      try { DriveApp.getFileById(teTrashIds[t]).setTrashed(true); } catch(_) {}
     }
     if (jaar) invalideerRittenCache_(email, categorie, jaar, kwartaal);
     try { sorteerSheet_(sheet, bouwEmailNaamMap_(ss)); } catch(_) {}
