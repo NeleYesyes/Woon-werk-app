@@ -32,8 +32,17 @@ function leesStatussenUitBestaandeSheet_(sheet) {
     if (col0.indexOf('Dienstverplaatsing') > -1) huidigeSectie = 'dienst';
     var status = (data[i][10]||'').toString().trim();
     if ((status === STATUS_INGEDIEND || status === STATUS_CONTROLE || status === STATUS_BETALING) && huidigKw > 0 && huidigeSectie) {
-      var naam = col0.replace(/^Totaal\s+/,'').trim();
-      if (naam) result[jaar + '|' + huidigKw + '|' + huidigeSectie + '|' + naam] = status;
+      var email  = (data[i][8]||'').toString().trim().toLowerCase(); // col 9 (index 8): e-mail (nieuw)
+      var naam   = (data[i][1]||'').toString().trim();               // col B (index 1): persoonsnaam
+      var prefix = jaar + '|' + huidigKw + '|' + huidigeSectie + '|';
+      // Primaire sleutel: e-mail of persoonsnaam (nooit domein)
+      var primSleutel = prefix + (email || naam);
+      if (email || naam) result[primSleutel] = status;
+      // Overgangsbruggetje: bewaar ook de domein-sleutel als col 9 nog leeg was (oud overzicht)
+      if (!email) {
+        var domein = col0.replace(/^Totaal\s+/,'').trim();
+        if (domein) result[prefix + domein] = status;
+      }
     }
   }
   return result;
@@ -479,14 +488,14 @@ function aggregeerFiets_(ritten, kw, tarief, personenMap, personenMapByEmail) {
     var displayNaam = p.naam || naam;
     var sleutel = (displayNaam || naam).toLowerCase().replace(/\s+/g, ' ').trim() || email;
     if (!map[sleutel]) {
-      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', totKm:0 };
+      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', email:email||'', totKm:0 };
       volgorde.push(sleutel);
     }
     map[sleutel].totKm += parseFloat(r[7]||0);
   });
   return volgorde.sort(function(a,b){ return map[a].naam.localeCompare(map[b].naam, 'nl'); }).map(function(s) {
     var g = map[s];
-    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:g.iban,
+    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:g.iban, email:g.email||'',
              ritten:[{ col4:'Thuis ↔ Academie', col5:g.totKm, col6:g.totKm*tarief }], fmt5:'0.0 "km"', fmt6:'"€ "#,##0.00' };
   });
 }
@@ -505,7 +514,7 @@ function aggregeerWoonwerk_(ritten, kw, personenMap, personenMapByEmail) {
     var displayNaam = p.naam || naam;
     var sleutel = (displayNaam || naam).toLowerCase().replace(/\s+/g, ' ').trim() || email;
     if (!map[sleutel]) {
-      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', aantalRitten:0, totBedrag:0 };
+      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', email:email||'', aantalRitten:0, totBedrag:0 };
       volgorde.push(sleutel);
     }
     map[sleutel].aantalRitten++;
@@ -513,7 +522,7 @@ function aggregeerWoonwerk_(ritten, kw, personenMap, personenMapByEmail) {
   });
   return volgorde.sort(function(a,b){ return map[a].naam.localeCompare(map[b].naam, 'nl'); }).map(function(s) {
     var g = map[s];
-    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:g.iban,
+    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:g.iban, email:g.email||'',
              ritten:[{ col4:g.aantalRitten + ' rit(ten)', col5:'', col6:g.totBedrag }], fmt5:null, fmt6:'"€ "#,##0.00' };
   });
 }
@@ -531,7 +540,7 @@ function aggregeerDienst_(ritten, kw, tarief, personenMap, personenMapByEmail) {
     var displayNaam = p.naam || naam;
     var sleutel = (displayNaam || naam).toLowerCase().replace(/\s+/g, ' ').trim() || email;
     if (!map[sleutel]) {
-      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', totKm:0, aantalVerpl:0, totParkeer:0 };
+      map[sleutel] = { naam:displayNaam, domein:p.domein||'', rijksreg:p.rijksreg||'', iban:p.iban||'', email:email||'', totKm:0, aantalVerpl:0, totParkeer:0 };
       volgorde.push(sleutel);
     }
     map[sleutel].totKm      += parseFloat(r[8]||0);
@@ -541,7 +550,7 @@ function aggregeerDienst_(ritten, kw, tarief, personenMap, personenMapByEmail) {
   return volgorde.sort(function(a,b){ return map[a].naam.localeCompare(map[b].naam, 'nl'); }).map(function(s) {
     var g = map[s];
     var parkeerTekst = g.totParkeer > 0 ? '€ ' + g.totParkeer.toFixed(2) : '—';
-    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:parkeerTekst,
+    return { naam:g.domein, adres:g.naam, pcGem:g.rijksreg, iban:parkeerTekst, email:g.email||'',
              ritten:[{ col4:g.aantalVerpl + ' verplaatsing(en)', col5:g.totKm, col6:g.totKm*tarief }], fmt5:'0.0 "km"', fmt6:'"€ "#,##0.00' };
   });
 }
@@ -591,13 +600,14 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
     var grandTot5 = 0, grandTot6 = 0;
     var heeftCol6 = groepen[0].ritten[0].col6 !== null;
 
-    // Batch-verzamelaars voor gewone kolommen 1–5 en 7 (kolom 6, 8 en 11 blijven per-cel)
+    // Batch-verzamelaars voor gewone kolommen 1–5, 7 en 9 (kolom 6, 8 en 11 blijven per-cel)
     var blokVals    = [];
     var blokBgs     = [];
     var blokFc      = [];
     var blokIban    = [];
     var blokIbanBgs = [];
     var blokIbanFc  = [];
+    var blokEmail   = []; // col 9: e-mail als stabiele sleutel voor betaalstatus
     var startRijBlok = rij;
 
     groepen.forEach(function(g) {
@@ -608,13 +618,14 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       // Rij-brede achtergrond (identiek aan vóór; raakt ook col 6 — bewust ongewijzigd)
       sheet.getRange(rij, 1, 1, 7).setBackground('#ffffff');
 
-      // Gewone kolommen 1–5 en 7: waarden + kleuren verzamelen voor post-lus batch
+      // Gewone kolommen 1–5, 7 en 9: waarden + kleuren verzamelen voor post-lus batch
       blokVals.push([g.naam, g.adres, g.pcGem, g.ritten[0].col4, tot5]);
       blokBgs.push( ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']);
       blokFc.push(  ['#334155', '#26295a', '#94a3b8', '#334155', '#26295a']);
       blokIban.push([g.iban]);
       blokIbanBgs.push(['#ffffff']);
       blokIbanFc.push(['#26295a']);
+      blokEmail.push([g.email || '']); // col 9: e-mailadres voor statussleutel
 
       // Per-cel opmaak die per kolom verschilt (weight, size, numberFormat) — blijft per-cel
       sheet.getRange(rij, 1).setFontWeight('normal').setFontSize(9);
@@ -640,9 +651,12 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       }
       sheet.setRowHeight(rij, 22);
 
-      // Kolom 11 — ONGEWIJZIGD (status, datavalidatie)
-      var sleutel = jaar+'|'+kw+'|'+sectie+'|'+g.naam;
-      var bestaandeStatus = (statusLookup && statusLookup[sleutel]) ? statusLookup[sleutel] : STATUS_INGEDIEND;
+      // Kolom 11: betaalstatus — primaire sleutel op e-mail of naam, domein als overgangsval
+      var primSleutel = jaar+'|'+kw+'|'+sectie+'|'+(g.email || g.adres);
+      var oudeSleutel = jaar+'|'+kw+'|'+sectie+'|'+g.naam;
+      var bestaandeStatus = (statusLookup && statusLookup[primSleutel]) ? statusLookup[primSleutel]
+                          : (statusLookup && statusLookup[oudeSleutel]) ? statusLookup[oudeSleutel]
+                          : STATUS_INGEDIEND;
       sheet.getRange(rij, 11).setValue(bestaandeStatus).setDataValidation(statusValidatie)
         .setBackground(statusKleur_(bestaandeStatus)).setFontSize(9).setFontColor('#334155')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
@@ -655,16 +669,18 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       blokIban.push(['']);
       blokIbanBgs.push(['#ffffff']);
       blokIbanFc.push(['#26295a']);
+      blokEmail.push(['']);
       sheet.getRange(rij, 1, 1, 7).setBackground('#ffffff'); sheet.setRowHeight(rij, 6); rij++;
     });
 
-    // Gebatched schrijven: gewone kolommen 1–5 en 7 in één blok over alle personen
+    // Gebatched schrijven: gewone kolommen 1–5, 7 en 9 in één blok over alle personen
     if (blokVals.length > 0) {
       var aantalRijen = blokVals.length;
       sheet.getRange(startRijBlok, 1, aantalRijen, 5)
         .setValues(blokVals).setBackgrounds(blokBgs).setFontColors(blokFc);
       sheet.getRange(startRijBlok, 7, aantalRijen, 1)
         .setValues(blokIban).setBackgrounds(blokIbanBgs).setFontColors(blokIbanFc);
+      sheet.getRange(startRijBlok, 9, aantalRijen, 1).setValues(blokEmail);
     }
   }
   return rij;

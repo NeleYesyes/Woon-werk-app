@@ -368,15 +368,16 @@ function onEditJaar(e) {
         verwerkKwartaalSlot_(sheet, e.range.getRow(), nieuweWaarde);
         return;
       }
-      // Melding-rij: kolom I bevat een e-mailadres
+      // Melding-rij: kolom I bevat een e-mailadres ÉN kolom J een kwartaalnummer (1–4)
+      // Persoonsrijen hebben ook een e-mail in kolom I (nieuw), maar kolom J is daar leeg.
       var notifEmail = (colIWaarde||'').toString().trim();
-      if (notifEmail.indexOf('@') > -1) {
-        var meldKw   = parseInt(sheet.getRange(e.range.getRow(), 10).getValue()) || 0;
+      var meldKw     = parseInt(sheet.getRange(e.range.getRow(), 10).getValue()) || 0;
+      if (notifEmail.indexOf('@') > -1 && meldKw > 0) {
         var meldJaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
         clearMeldingViaStatus_(notifEmail, nieuweWaarde, meldKw, meldJaar);
         return;
       }
-      // Gewone statusrij
+      // Gewone statusrij (ook persoonsrijen met e-mail in kolom I maar zonder kwartaal in kolom J)
       e.range.setBackground(statusKleur_(nieuweWaarde));
     }
   } catch(err) { Logger.log('onEditJaar fout: ' + err); }
