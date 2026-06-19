@@ -236,3 +236,66 @@ function bouwPersonenMapByEmail_(ss) {
   }
   return map;
 }
+
+
+// ─── PREVIEW RIJKSREGISTERNUMMER-FORMAAT (ALLEEN LEZEN) ──────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer previewRijksregFormaat en klik ▶ Uitvoeren.
+// Wijzigt NIETS in de spreadsheet — rapport verschijnt enkel in het uitvoeringslogboek.
+
+function previewRijksregFormaat() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log('Geen gegevens gevonden in tabblad Personeelsgegevens.');
+    return;
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var aantalOk = 0, aantalWijzigen = 0, aantalLetOp = 0;
+  var lijnen = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var naam    = (data[i][1]||'').toString().trim() || '(geen naam)';
+    var huidig  = (data[i][6]||'').toString().trim();
+
+    // Dezelfde logica als formatRijksreg in de webapp
+    var cijfers = huidig.replace(/\D/g, '').slice(0, 11);
+    var s = cijfers.slice(0, Math.min(2, cijfers.length));
+    if (cijfers.length > 2) s += '.' + cijfers.slice(2, Math.min(4, cijfers.length));
+    if (cijfers.length > 4) s += '.' + cijfers.slice(4, Math.min(6, cijfers.length));
+    if (cijfers.length > 6) s += '-' + cijfers.slice(6, Math.min(9, cijfers.length));
+    if (cijfers.length > 9) s += '.' + cijfers.slice(9, 11);
+    var geformatteerd = s;
+
+    var status;
+    if (cijfers.length !== 11) {
+      status = 'LET OP';
+      aantalLetOp++;
+    } else if (huidig === geformatteerd) {
+      status = 'OK';
+      aantalOk++;
+    } else {
+      status = 'ZOU WIJZIGEN';
+      aantalWijzigen++;
+    }
+
+    lijnen.push(
+      '[Rij ' + (i + 1) + '] ' + status +
+      ' | Naam: ' + naam +
+      ' | Huidig: "' + huidig + '"' +
+      (status !== 'OK' ? ' | Voorstel: "' + geformatteerd + '"' : '')
+    );
+  }
+
+  Logger.log('══════════════════════════════════════════════════════');
+  Logger.log('PREVIEW rijksregisternummer-formaat — NIETS gewijzigd');
+  Logger.log('══════════════════════════════════════════════════════');
+  lijnen.forEach(function(l) { Logger.log(l); });
+  Logger.log('──────────────────────────────────────────────────────');
+  Logger.log('Samenvatting:');
+  Logger.log('  OK           : ' + aantalOk);
+  Logger.log('  ZOU WIJZIGEN : ' + aantalWijzigen + '  (format wordt rechtgezet, 11 cijfers aanwezig)');
+  Logger.log('  LET OP       : ' + aantalLetOp   + '  (niet precies 11 cijfers — handmatig nakijken)');
+  Logger.log('  Totaal rijen : ' + (data.length - 1));
+  Logger.log('══════════════════════════════════════════════════════');
+}
