@@ -99,6 +99,8 @@ function uploadBewijs(base64Data, mimeType, bestandsnaam, ritId, categorie, gede
 // ─── BATCH UPLOAD (nieuwe methode: meerdere bestanden in één aanroep) ────────
 
 function uploadBewijzenBatch(data, ritId, categorie) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { ok: false, error: 'Je bent net van hetzelfde idee als je collega, dus probeer je binnen een minuutje opnieuw? Dankjewel!' };
   try {
     var ss              = getSS_();
     var gedeeldeMap     = DriveApp.getFolderById(CONFIG.DRIVE_MAP_ID);
@@ -110,6 +112,7 @@ function uploadBewijzenBatch(data, ritId, categorie) {
     }
     return { ok: true };
   } catch(e) { Logger.log('❌ uploadBewijzenBatch: ' + e); return { ok: false, error: e.toString() }; }
+  finally { lock.releaseLock(); }
 }
 
 function getDriveUploadConfig() {

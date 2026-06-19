@@ -192,6 +192,8 @@ function saveRit(rit, categorie) {
 }
 
 function deleteRit(id, categorie) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { ok: false, error: 'Je bent net van hetzelfde idee als je collega, dus probeer je binnen een minuutje opnieuw? Dankjewel!' };
   try {
     var email = getEmail_();
     var ss    = getSS_();
@@ -236,4 +238,5 @@ function deleteRit(id, categorie) {
     var _ckk2 = checkKolVoorSheet_(sheet.getName()); if (_ckk2) { try { kleurBeeldCheckKol_(ss, sheet, _ckk2); } catch(_e) {} }
     return { ok: true };
   } catch(e) { Logger.log('❌ deleteRit: ' + e); return { ok: false, error: e.toString() }; }
+  finally { lock.releaseLock(); }
 }
