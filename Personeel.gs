@@ -299,3 +299,89 @@ function previewRijksregFormaat() {
   Logger.log('  Totaal rijen : ' + (data.length - 1));
   Logger.log('══════════════════════════════════════════════════════');
 }
+
+
+// ─── CORRECTIE RIJKSREGISTERNUMMER-FORMAAT ───────────────────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer corrigeerRijksregFormaat en klik ▶ Uitvoeren.
+// Wijzigt ALLEEN de "ZOU WIJZIGEN"-gevallen (11 cijfers aanwezig, format klopt niet).
+// "OK"-gevallen worden niet aangeraakt.
+// "LET OP"-gevallen (≠ 11 cijfers) worden NIET gewijzigd maar wel gemeld in het log.
+
+function corrigeerRijksregFormaat() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log('Geen gegevens gevonden in tabblad Personeelsgegevens.');
+    return;
+  }
+
+  var data = sheet.getDataRange().getValues();
+
+  // Verzamel eerst alle te wijzigen cellen — schrijf daarna pas weg.
+  var teWijzigen = [];  // {rij: 1-based, naam, oud, nieuw}
+  var aantalOk = 0, aantalLetOp = 0;
+  var letOpRijen = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var naam   = (data[i][1] || '').toString().trim() || '(geen naam)';
+    var huidig = (data[i][6] || '').toString().trim();
+
+    // Zelfde logica als previewRijksregFormaat / formatRijksreg in de webapp.
+    var cijfers = huidig.replace(/\D/g, '').slice(0, 11);
+    var s = cijfers.slice(0, Math.min(2, cijfers.length));
+    if (cijfers.length > 2) s += '.' + cijfers.slice(2, Math.min(4, cijfers.length));
+    if (cijfers.length > 4) s += '.' + cijfers.slice(4, Math.min(6, cijfers.length));
+    if (cijfers.length > 6) s += '-' + cijfers.slice(6, Math.min(9, cijfers.length));
+    if (cijfers.length > 9) s += '.' + cijfers.slice(9, 11);
+    var geformatteerd = s;
+
+    if (cijfers.length !== 11) {
+      // LET OP — overslaan, apart melden.
+      aantalLetOp++;
+      letOpRijen.push('[Rij ' + (i + 1) + '] LET OP | Naam: ' + naam + ' | Huidig: "' + huidig + '" | Cijfers: ' + cijfers.length);
+    } else if (huidig === geformatteerd) {
+      // Al correct — niet aanraken.
+      aantalOk++;
+    } else {
+      // ZOU WIJZIGEN — verzamelen.
+      teWijzigen.push({ rij: i + 1, naam: naam, oud: huidig, nieuw: geformatteerd });
+    }
+  }
+
+  // Schrijf de gecorrigeerde waarden weg, cel per cel zodat alleen kolom G wordt aangeraakt.
+  for (var j = 0; j < teWijzigen.length; j++) {
+    var w = teWijzigen[j];
+    var cel = sheet.getRange(w.rij, 7);   // kolom G = kolom 7
+    cel.setNumberFormat('@');             // tekstopmaak vóór setValue, anders herinterpretatie
+    cel.setValue(w.nieuw);
+  }
+
+  // ── Lograpport ──────────────────────────────────────────────────────────────
+  Logger.log('══════════════════════════════════════════════════════');
+  Logger.log('CORRECTIE rijksregisternummer-formaat — UITGEVOERD');
+  Logger.log('══════════════════════════════════════════════════════');
+
+  if (teWijzigen.length > 0) {
+    Logger.log('Gecorrigeerde rijen:');
+    for (var k = 0; k < teWijzigen.length; k++) {
+      var w2 = teWijzigen[k];
+      Logger.log('  [Rij ' + w2.rij + '] ' + w2.naam + ' | Oud: "' + w2.oud + '" → Nieuw: "' + w2.nieuw + '"');
+    }
+  } else {
+    Logger.log('Geen rijen gecorrigeerd.');
+  }
+
+  if (letOpRijen.length > 0) {
+    Logger.log('──────────────────────────────────────────────────────');
+    Logger.log('Overgeslagen (LET OP — handmatig nakijken):');
+    letOpRijen.forEach(function(l) { Logger.log('  ' + l); });
+  }
+
+  Logger.log('──────────────────────────────────────────────────────');
+  Logger.log('Samenvatting:');
+  Logger.log('  Gecorrigeerd : ' + teWijzigen.length);
+  Logger.log('  Al correct   : ' + aantalOk);
+  Logger.log('  LET OP       : ' + aantalLetOp + '  (niet precies 11 cijfers — niet gewijzigd)');
+  Logger.log('  Totaal rijen : ' + (data.length - 1));
+  Logger.log('══════════════════════════════════════════════════════');
+}
