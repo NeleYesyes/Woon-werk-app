@@ -192,11 +192,16 @@ function getPersonData_(email, ss) {
   return result;
 }
 
-function bouwPersonenMap_(ss) {
+function bouwPersonenMap_(ss, persDataPreloaded) {
   var map = {};
-  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
-  if (!sheet || sheet.getLastRow() < 2) return map;
-  var data = sheet.getDataRange().getValues();
+  var data;
+  if (Array.isArray(persDataPreloaded)) {
+    data = persDataPreloaded;
+  } else {
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (!sheet || sheet.getLastRow() < 2) return map;
+    data = sheet.getDataRange().getValues();
+  }
   for (var i = 1; i < data.length; i++) {
     var naam = (data[i][1]||'').toString().trim();
     if (naam) {
@@ -213,11 +218,16 @@ function bouwPersonenMap_(ss) {
   return map;
 }
 
-function bouwPersonenMapByEmail_(ss) {
+function bouwPersonenMapByEmail_(ss, persDataPreloaded) {
   var map = {};
-  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
-  if (!sheet || sheet.getLastRow() < 2) return map;
-  var data = sheet.getDataRange().getValues();
+  var data;
+  if (Array.isArray(persDataPreloaded)) {
+    data = persDataPreloaded;
+  } else {
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (!sheet || sheet.getLastRow() < 2) return map;
+    data = sheet.getDataRange().getValues();
+  }
   for (var i = 1; i < data.length; i++) {
     var email = (data[i][7]||'').toString().trim().toLowerCase();
     if (!email) continue;

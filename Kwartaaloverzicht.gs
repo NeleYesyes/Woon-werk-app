@@ -167,31 +167,31 @@ function maakKwartaaloverzicht() {
   var fietsR   = leesRittenVoorJaar_(ss, CONFIG.SHEETS.FIETSVERGOEDING,    jaar, 3);
   var woonwR   = leesRittenVoorJaar_(ss, CONFIG.SHEETS.WOON_WERK,          jaar, 3);
   var dienstR  = leesRittenVoorJaar_(ss, CONFIG.SHEETS.DIENSTVERPLAATSING, jaar, 3);
-  var personenMap = bouwPersonenMap_(ss);
-  var personenMapByEmail = bouwPersonenMapByEmail_(ss);
+  var persSheetShared = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  var persDataGedeeld = (persSheetShared && persSheetShared.getLastRow() >= 2) ? persSheetShared.getDataRange().getValues() : [[]];
+  var personenMap = bouwPersonenMap_(ss, persDataGedeeld);
+  var personenMapByEmail = bouwPersonenMapByEmail_(ss, persDataGedeeld);
 
   // Verberg/wis oude personeelsrijen uit vorige jaren
-  ruimPersoneelsOudRijenOp_(ss, jaar);
+  ruimPersoneelsOudRijenOp_(ss, jaar, persDataGedeeld.length > 1 ? persDataGedeeld.slice(1) : []);
 
   // Personeelsmeldingen per kwartaal — enkel voor het weergegeven jaar
   var meldingPerKw = { 1:[], 2:[], 3:[], 4:[] };
-  var persSheetM = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
-  if (persSheetM && persSheetM.getLastRow() >= 2) {
-    var persDataM = persSheetM.getDataRange().getValues();
-    for (var mi = 1; mi < persDataM.length; mi++) {
-      var mStatus = (persDataM[mi][10]||'').toString().trim().toLowerCase();
+  if (persDataGedeeld.length >= 2) {
+    for (var mi = 1; mi < persDataGedeeld.length; mi++) {
+      var mStatus = (persDataGedeeld[mi][10]||'').toString().trim().toLowerCase();
       if (mStatus !== 'nieuw' && mStatus !== 'gewijzigd') continue;
-      var geldigheid = (persDataM[mi][8]||'').toString().trim();
-      var meldDetail = (persDataM[mi][9]||'').toString().trim();
+      var geldigheid = (persDataGedeeld[mi][8]||'').toString().trim();
+      var meldDetail = (persDataGedeeld[mi][9]||'').toString().trim();
       var mVanaf = geldigheid.match(/(\d{2})\/(\d{2})\/(\d{4})/);
       if (!mVanaf) mVanaf = meldDetail.match(/(\d{2})\/(\d{2})\/(\d{4})/);
       if (!mVanaf || parseInt(mVanaf[3]) !== jaar) continue;
       var meldDatum = new Date(parseInt(mVanaf[3]), parseInt(mVanaf[2])-1, parseInt(mVanaf[1]));
       var mKw = getQuarterFromDate(meldDatum);
-      var melEmail   = (persDataM[mi][7]||persDataM[mi][5]||'').toString().toLowerCase().trim();
+      var melEmail   = (persDataGedeeld[mi][7]||persDataGedeeld[mi][5]||'').toString().toLowerCase().trim();
       var normEmail  = melEmail.replace(/[^a-z0-9@._-]/g, '_');
       var handledKw  = parseInt(props.getProperty('meldingHandledKw_' + normEmail + '_' + jaar)) || 0;
-      var melObj = { domein: (persDataM[mi][0]||'').toString().trim(), naam: (persDataM[mi][1]||'').toString().trim(), email: melEmail, type: mStatus, handledKw: handledKw };
+      var melObj = { domein: (persDataGedeeld[mi][0]||'').toString().trim(), naam: (persDataGedeeld[mi][1]||'').toString().trim(), email: melEmail, type: mStatus, handledKw: handledKw };
       for (var mq = mKw; mq <= 4; mq++) {
         if (handledKw > 0 && mq > handledKw) continue;
         meldingPerKw[mq].push(melObj);
@@ -426,10 +426,10 @@ function verversKwartaaloverzicht() {
   verversKwartaaloverzichtAlsBestaat_();
 }
 
-function ruimPersoneelsOudRijenOp_(ss, jaar) {
+function ruimPersoneelsOudRijenOp_(ss, jaar, persDataPreloaded) {
   var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
   if (!sheet || sheet.getLastRow() < 2) return;
-  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 11).getValues();
+  var data = Array.isArray(persDataPreloaded) ? persDataPreloaded : sheet.getRange(2, 1, sheet.getLastRow() - 1, 11).getValues();
   for (var i = 0; i < data.length; i++) {
     var geldigheid = (data[i][8]||'').toString().trim();
     var melding    = (data[i][10]||'').toString().trim().toLowerCase();
