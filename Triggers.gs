@@ -159,7 +159,7 @@ function onEditJaar(e) {
       } else {
         checkCel.setBackground(null).setFontColor(null);
       }
-      verversKwartaaloverzichtAlsBestaat_();
+      verversKwartaaloverzichtAlsBestaat_(sheetNaam);
       return;
     }
 
@@ -184,7 +184,7 @@ function onEditJaar(e) {
       } else {
         checkCelB.setBackground(null).setFontColor(null);
       }
-      verversKwartaaloverzichtAlsBestaat_();
+      verversKwartaaloverzichtAlsBestaat_(sheetNaam);
       return;
     }
 
@@ -277,7 +277,7 @@ function onEditJaar(e) {
         var _ckkMan = checkKolVoorSheet_(sheetNaam); if (_ckkMan) { try { kleurBeeldCheckKol_(ssManueel, sheet, _ckkMan); } catch(_e) {} }
         SpreadsheetApp.getActiveSpreadsheet().toast('Rijen hergesorteerd op naam — controleer de positie van de nieuwe rij.', 'Alfabetisch gesorteerd ↕', 4);
       }
-      if (manMoetVerversen) verversKwartaaloverzichtAlsBestaat_();
+      if (manMoetVerversen) verversKwartaaloverzichtAlsBestaat_(sheetNaam);
     }
 
     // Aanpak: klik op gekleurde knop (col 1) om sectie te tonen
@@ -292,7 +292,7 @@ function onEditJaar(e) {
 
     if (sheetNaam !== 'Kwartaaloverzicht') return;
 
-    if (e.range.getRow() === 2 && e.range.getColumn() === 2) { maakKwartaaloverzicht(); return; }
+    if (e.range.getRow() === 2 && e.range.getColumn() === 2) { maakKwartaaloverzicht(sheetNaam); return; }
 
     if (e.range.getColumn() === 8 && e.range.getRow() > 3) {
       var hdrRij    = e.range.getRow();
@@ -308,12 +308,12 @@ function onEditJaar(e) {
         var tariefVal = parseFloat(e.range.getValue()) || 0;
         if (titelCelA.indexOf('Fietsvergoeding') > -1) {
           PropertiesService.getScriptProperties().setProperty('tariefFiets', tariefVal.toString());
-          maakKwartaaloverzicht();
+          maakKwartaaloverzicht(sheetNaam);
           return;
         }
         if (titelCelA.indexOf('Dienstverplaatsing') > -1) {
           PropertiesService.getScriptProperties().setProperty('tariefDienst', tariefVal.toString());
-          maakKwartaaloverzicht();
+          maakKwartaaloverzicht(sheetNaam);
           return;
         }
         return;

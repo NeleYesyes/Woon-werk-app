@@ -82,9 +82,13 @@ function getQuarterlyOverview(quarter, year) {
   });
 }
 
-function maakKwartaaloverzicht() {
+function maakKwartaaloverzicht(terugNaamParam) {
   var terugNaam;
-  try { var _a = SpreadsheetApp.getActiveSheet(); terugNaam = _a ? _a.getName() : null; } catch(_) { terugNaam = null; }
+  if (terugNaamParam) {
+    terugNaam = terugNaamParam;
+  } else {
+    try { var _a = SpreadsheetApp.getActiveSheet(); terugNaam = _a ? _a.getName() : null; } catch(_) { terugNaam = null; }
+  }
   var ss       = getSS_();
   var naam     = 'Kwartaaloverzicht';
   var nu       = getEffectiveDate();
@@ -369,7 +373,7 @@ function maakKwartaaloverzicht() {
   Logger.log('✅ Kwartaaloverzicht bijgewerkt voor ' + jaar + '.');
 }
 
-function verversKwartaaloverzichtAlsBestaat_() {
+function verversKwartaaloverzichtAlsBestaat_(terugNaamParam) {
   try {
     // Eventuele nog geplande refresh annuleren (na directe aanroep niet meer nodig)
     ScriptApp.getProjectTriggers().forEach(function(t) {
@@ -378,7 +382,7 @@ function verversKwartaaloverzichtAlsBestaat_() {
     // Direct herbouwen: time-based triggers hebben een minimumvertraging van ~1 minuut,
     // waardoor .after(5000) toch pas na ±1 minuut vuurde. Installable triggers draaien
     // 6 minuten, dus maakKwartaaloverzicht() past hier gewoon in.
-    maakKwartaaloverzicht();
+    maakKwartaaloverzicht(terugNaamParam);
   } catch(e) { Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e); }
 }
 
