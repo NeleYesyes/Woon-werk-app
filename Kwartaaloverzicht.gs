@@ -358,7 +358,7 @@ function verversKwartaaloverzichtAlsBestaat_() {
       if (t.getHandlerFunction() === 'verversKwartaaloverzichtGetriggerd') ScriptApp.deleteTrigger(t);
     });
     // Als het tabblad weg is: zo snel mogelijk herbouwen (5s); anders normale vertraging (45s)
-    var vertraging = bestaatSheet ? 20000 : 5000;
+    var vertraging = bestaatSheet ? 5000 : 5000;
     ScriptApp.newTrigger('verversKwartaaloverzichtGetriggerd')
       .timeBased().after(vertraging).create();
   } catch(e) { Logger.log('⚠️ Refresh inplannen mislukt: ' + e); }

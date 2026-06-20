@@ -374,6 +374,9 @@ function onEditJaar(e) {
       var meldKw     = parseInt(sheet.getRange(e.range.getRow(), 10).getValue()) || 0;
       if (notifEmail.indexOf('@') > -1 && meldKw > 0) {
         var meldJaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
+        if (nieuweWaarde === 'Opgelet: wijziging') {
+          e.range.setBackground('#dc2626').setFontColor('#ffffff');
+        }
         clearMeldingViaStatus_(notifEmail, nieuweWaarde, meldKw, meldJaar);
         return;
       }

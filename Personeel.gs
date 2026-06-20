@@ -163,11 +163,17 @@ function saveUserDataAlle(personData) {
 }
 
 function clearMeldingViaStatus_(email, nieuweStatus, handledKw, jaar) {
-  // Aangeroepen vanuit onEditJaar wanneer Stad Ieper "Wijziging doorgevoerd" instelt
-  if (nieuweStatus !== 'Wijziging doorgevoerd') return;
-  if (handledKw > 0 && jaar > 0) {
-    var normEmail = email.toLowerCase().trim().replace(/[^a-z0-9@._-]/g, '_');
-    PropertiesService.getScriptProperties().setProperty('meldingHandledKw_' + normEmail + '_' + jaar, handledKw.toString());
+  var normEmail = email.toLowerCase().trim().replace(/[^a-z0-9@._-]/g, '_');
+  if (nieuweStatus === 'Wijziging doorgevoerd') {
+    if (handledKw > 0 && jaar > 0) {
+      PropertiesService.getScriptProperties().setProperty('meldingHandledKw_' + normEmail + '_' + jaar, handledKw.toString());
+    }
+  } else if (nieuweStatus === 'Opgelet: wijziging') {
+    if (jaar > 0) {
+      PropertiesService.getScriptProperties().deleteProperty('meldingHandledKw_' + normEmail + '_' + jaar);
+    }
+  } else {
+    return;
   }
   verversKwartaaloverzichtAlsBestaat_();
 }
