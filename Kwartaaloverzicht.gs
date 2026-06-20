@@ -97,6 +97,7 @@ function maakKwartaaloverzicht() {
 
   var FIETS_TARIEF  = 0;
   var DIENST_TARIEF = 0;
+  var vorigeOpenKw  = 0;
   if (bestaand) {
     var hData = bestaand.getDataRange().getValues();
     for (var hi = 0; hi < hData.length - 1; hi++) {
@@ -111,7 +112,16 @@ function maakKwartaaloverzicht() {
         if (!isNaN(dVal) && dVal > 0) DIENST_TARIEF = dVal;
       }
     }
+    // Zoek eerder geopend kwartaal: checkbox H = true én col I = dataStart (positief getal)
+    for (var vi = 3; vi < hData.length; vi++) {
+      if (hData[vi][7] === true && parseInt(hData[vi][8]) > 0) {
+        var kwLabelVI = (hData[vi][0]||'').toString();
+        var kwMVI = kwLabelVI.match(/Kwartaal\s+(\d)/);
+        if (kwMVI) { vorigeOpenKw = parseInt(kwMVI[1]); break; }
+      }
+    }
   }
+  if (!vorigeOpenKw) vorigeOpenKw = isHuidigJaar ? huidigKw : 1;
 
 
   var statusLookup = leesStatussenUitBestaandeSheet_(bestaand);
@@ -207,6 +217,7 @@ function maakKwartaaloverzicht() {
   for (var kw = 1; kw <= 4; kw++) {
     if (kw > 1) { sheet.getRange(rij, 1, 1, 11).setBackground('#ffffff'); sheet.setRowHeight(rij, 18); rij++; }
     var isHuidig   = isHuidigJaar && (kw === huidigKw);
+    var isGeopend  = (kw === vorigeOpenKw);
     var isGesloten = isHuidigJaar && isLocked(kw, jaar);
     var kwLabel    = kwNamen[kw];
     if (isHuidig)   kwLabel += '   ★ huidig kwartaal';
@@ -216,15 +227,15 @@ function maakKwartaaloverzicht() {
     var kwHeader  = sheet.getRange(rij, 1, 1, 7);
     kwHeader.merge()
       .setValue(kwLabel)
-      .setBackground(isHuidig ? '#f59e0b' : isGesloten ? '#64748b' : '#ffffff')
-      .setFontColor(isHuidig ? '#7c2d12' : isGesloten ? '#ffffff' : '#94a3b8')
-      .setFontSize(isHuidig ? 11 : 10).setFontWeight('bold')
+      .setBackground(isGeopend ? '#f59e0b' : isGesloten ? '#64748b' : '#ffffff')
+      .setFontColor(isGeopend ? '#7c2d12' : isGesloten ? '#ffffff' : '#94a3b8')
+      .setFontSize(isGeopend ? 11 : 10).setFontWeight('bold')
       .setHorizontalAlignment('left').setVerticalAlignment('middle');
-    kwHeader.setBorder(true, null, null, null, null, null, isHuidig ? '#ea580c' : '#cbd5e1', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    kwHeader.setBorder(true, null, null, null, null, null, isGeopend ? '#ea580c' : '#cbd5e1', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
     sheet.getRange(headerRij, 8)
-      .setValue(isHuidig)
+      .setValue(isGeopend)
       .setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build())
-      .setBackground(isHuidig ? '#ede9fe' : isGesloten ? '#f1f5f9' : '#ffffff')
+      .setBackground(isGeopend ? '#ede9fe' : isGesloten ? '#f1f5f9' : '#ffffff')
       .setHorizontalAlignment('center').setVerticalAlignment('middle');
     // Kolom K: checkbox Stad Ieper
     var kwVergrendeld = vergrendelingLookup[kw] || false;
@@ -235,7 +246,7 @@ function maakKwartaaloverzicht() {
       .setHorizontalAlignment('center').setVerticalAlignment('middle');
     // Kolom L: instructietekst naast Stad Ieper checkbox — voor het initieel geopende kwartaal
     // Huidig jaar → huidig kwartaal; ander jaar → kwartaal 1 (dat wordt standaard geopend)
-    var isInitieelGeopend = isHuidigJaar ? isHuidig : (kw === 1);
+    var isInitieelGeopend = isGeopend;
     if (isInitieelGeopend) {
       sheet.getRange(headerRij, 12)
         .setValue('← Helemaal klaar met kwartaal? Klik checkbox, graag!')
@@ -244,7 +255,7 @@ function maakKwartaaloverzicht() {
     } else {
       sheet.getRange(headerRij, 12).clearContent();
     }
-    sheet.setRowHeight(rij, isHuidig ? 42 : 26); rij++;
+    sheet.setRowHeight(rij, isGeopend ? 42 : 26); rij++;
 
     var kwDataStart = rij;
 
@@ -293,7 +304,7 @@ function maakKwartaaloverzicht() {
       true, DIENST_TARIEF, 'dienst', jaar, kw, statusLookup);
 
     sheet.setRowHeight(rij, 24); rij++;
-    kwartaalRijen.push({ kw: kw, dataStart: kwDataStart, dataEinde: rij - 1, isHuidig: isHuidig });
+    kwartaalRijen.push({ kw: kw, dataStart: kwDataStart, dataEinde: rij - 1, isHuidig: isHuidig, isGeopend: isGeopend });
   }
 
   var defaultBreedtes = { 1:60, 2:100, 3:85, 4:115, 5:60, 6:65, 7:135, 8:80, 11:155, 12:310 };
@@ -315,10 +326,10 @@ function maakKwartaaloverzicht() {
     sheet.getRange(hdrRij, 9).setValue(k.dataStart);
     sheet.getRange(hdrRij, 10).setValue(k.dataEinde);
     if (isHuidigJaar) {
-      if (!k.isHuidig) sheet.hideRows(k.dataStart, k.dataEinde - k.dataStart + 1);
+      if (!k.isGeopend) sheet.hideRows(k.dataStart, k.dataEinde - k.dataStart + 1);
     } else {
-      sheet.getRange(hdrRij, 8).setValue(k.kw === 1);
-      if (k.kw !== 1) sheet.hideRows(k.dataStart, k.dataEinde - k.dataStart + 1);
+      sheet.getRange(hdrRij, 8).setValue(k.isGeopend);
+      if (!k.isGeopend) sheet.hideRows(k.dataStart, k.dataEinde - k.dataStart + 1);
     }
   });
   sheet.hideColumns(9, 2);
