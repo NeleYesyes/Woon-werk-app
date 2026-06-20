@@ -362,17 +362,15 @@ function maakKwartaaloverzicht() {
 
 function verversKwartaaloverzichtAlsBestaat_() {
   try {
-    var ss = getSS_();
-    var bestaatSheet = !!ss.getSheetByName('Kwartaaloverzicht');
-    // Debounce: eventuele lopende geplande refresh annuleren
+    // Eventuele nog geplande refresh annuleren (na directe aanroep niet meer nodig)
     ScriptApp.getProjectTriggers().forEach(function(t) {
       if (t.getHandlerFunction() === 'verversKwartaaloverzichtGetriggerd') ScriptApp.deleteTrigger(t);
     });
-    // Als het tabblad weg is: zo snel mogelijk herbouwen (5s); anders normale vertraging (45s)
-    var vertraging = bestaatSheet ? 5000 : 5000;
-    ScriptApp.newTrigger('verversKwartaaloverzichtGetriggerd')
-      .timeBased().after(vertraging).create();
-  } catch(e) { Logger.log('⚠️ Refresh inplannen mislukt: ' + e); }
+    // Direct herbouwen: time-based triggers hebben een minimumvertraging van ~1 minuut,
+    // waardoor .after(5000) toch pas na ±1 minuut vuurde. Installable triggers draaien
+    // 6 minuten, dus maakKwartaaloverzicht() past hier gewoon in.
+    maakKwartaaloverzicht();
+  } catch(e) { Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e); }
 }
 
 function verversKwartaaloverzichtGetriggerd() {
