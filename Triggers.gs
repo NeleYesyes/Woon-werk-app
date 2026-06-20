@@ -320,6 +320,13 @@ function onEditJaar(e) {
       }
       if (e.range.getValue() === true) {
         sheet.showRows(dataStart, dataEinde - dataStart + 1);
+        // Sla het gekozen kwartaal op zodat een rebuild dezelfde staat herstelt
+        var kwLabelOpen = (sheet.getRange(hdrRij, 1).getValue()||'').toString();
+        var kwMatchOpen = kwLabelOpen.match(/Kwartaal\s+(\d)/);
+        if (kwMatchOpen) {
+          var jaarOpen = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
+          PropertiesService.getScriptProperties().setProperty('lastOpenKw_' + jaarOpen, kwMatchOpen[1]);
+        }
         // Geopend kwartaal: oranje header + instructietekst kolom 12
         sheet.getRange(hdrRij, 1, 1, 7).setBackground('#f59e0b').setFontColor('#7c2d12').setFontSize(11);
         sheet.getRange(hdrRij, 12)

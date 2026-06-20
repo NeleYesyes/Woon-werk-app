@@ -98,8 +98,9 @@ function maakKwartaaloverzicht() {
   var FIETS_TARIEF  = 0;
   var DIENST_TARIEF = 0;
   var vorigeOpenKw  = 0;
+  var hData;
   if (bestaand) {
-    var hData = bestaand.getDataRange().getValues();
+    hData = bestaand.getDataRange().getValues();
     for (var hi = 0; hi < hData.length - 1; hi++) {
       var hLabel = (hData[hi][0]||'').toString();
       // Het tarief staat in de headerrij (hi+1), niet in de titelrij (hi) zelf
@@ -112,7 +113,16 @@ function maakKwartaaloverzicht() {
         if (!isNaN(dVal) && dVal > 0) DIENST_TARIEF = dVal;
       }
     }
-    // Zoek eerder geopend kwartaal: checkbox H = true én col I = dataStart (positief getal)
+  }
+  // Bepaal welk kwartaal open moet staan:
+  // 1. PropertiesService: door gebruiker expliciet gekozen via H-checkbox (meest betrouwbaar)
+  // 2. H-checkbox in oud blad (enkel voor vorige jaren als fallback)
+  // 3. Standaard: huidig kwartaal (huidig jaar) of K1 (vorig jaar)
+  var props = PropertiesService.getScriptProperties();
+  var storedKw = parseInt(props.getProperty('lastOpenKw_' + jaar)) || 0;
+  if (storedKw >= 1 && storedKw <= 4) {
+    vorigeOpenKw = storedKw;
+  } else if (!isHuidigJaar && hData) {
     for (var vi = 3; vi < hData.length; vi++) {
       if (hData[vi][7] === true && parseInt(hData[vi][8]) > 0) {
         var kwLabelVI = (hData[vi][0]||'').toString();
@@ -127,7 +137,6 @@ function maakKwartaaloverzicht() {
   var statusLookup = leesStatussenUitBestaandeSheet_(bestaand);
 
   // Lees vergrendelingstatus per kwartaal uit PropertiesService (blijft bewaard bij herbouw)
-  var props = PropertiesService.getScriptProperties();
   var vergrendelingLookup = {};
   for (var vk = 1; vk <= 4; vk++) {
     if (props.getProperty('lock_' + jaar + '_' + vk) === 'true') vergrendelingLookup[vk] = true;
