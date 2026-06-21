@@ -73,18 +73,35 @@ function toonRitRijenVoorKwartaal_(ss, jaar, kw) {
 function installeerJaarTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
     var fn = t.getHandlerFunction();
-    if (fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_') ScriptApp.deleteTrigger(t);
+    if (fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_' || fn === 'onChangeStructuur') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('onEditJaar').forSpreadsheet(CONFIG.SPREADSHEET_ID).onEdit().create();
+  ScriptApp.newTrigger('onChangeStructuur').forSpreadsheet(CONFIG.SPREADSHEET_ID).onChange().create();
   ScriptApp.newTrigger('controleerKwartaaloverzicht_').timeBased().everyHours(1).create();
   Logger.log('✅ Triggers geïnstalleerd.');
   try {
     SpreadsheetApp.getUi().alert(
       '✅ Triggers geïnstalleerd.\n\n' +
       '• Bewerkingen in de tabbladen worden automatisch verwerkt.\n' +
+      '• Rijen verwijderen in de rit- en personeelstabbladen vernieuwt het Kwartaaloverzicht automatisch.\n' +
       '• Het Kwartaaloverzicht wordt elk uur automatisch gecontroleerd en hersteld indien nodig.'
     );
   } catch(_) {}
+}
+
+function onChangeStructuur(e) {
+  try {
+    if (e.changeType !== 'REMOVE_ROW') return;
+    var geraaktSheet = e.source.getActiveSheet().getName();
+    var gemonitordeTabbladen = [
+      CONFIG.SHEETS.FIETSVERGOEDING,
+      CONFIG.SHEETS.WOON_WERK,
+      CONFIG.SHEETS.DIENSTVERPLAATSING,
+      CONFIG.SHEETS.PERSONEELSGEGEVENS
+    ];
+    if (gemonitordeTabbladen.indexOf(geraaktSheet) === -1) return;
+    verversKwartaaloverzichtAlsBestaat_();
+  } catch(err) { Logger.log('onChangeStructuur fout: ' + err); }
 }
 
 function onEditJaar(e) {
