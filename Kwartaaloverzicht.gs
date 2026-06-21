@@ -136,7 +136,9 @@ function maakKwartaaloverzicht(terugNaamParam) {
     }
   }
   if (!vorigeOpenKw) vorigeOpenKw = isHuidigJaar ? huidigKw : 1;
-
+  // Altijd persisteren: ook als het kwartaal via H-checkbox of standaard bepaald werd,
+  // zodat opeenvolgende rebuilds (bv. na plakken) steeds hetzelfde kwartaal heropenen.
+  props.setProperty('lastOpenKw_' + jaar, vorigeOpenKw.toString());
 
   var statusLookup = leesStatussenUitBestaandeSheet_(bestaand);
 
