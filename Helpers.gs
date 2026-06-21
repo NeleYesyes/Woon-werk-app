@@ -182,6 +182,7 @@ function sorteerPersoneelsSheet_(ss) {
   rijZonderEmail.forEach(function(r) { nieuweW.push(r); });
   if (nieuweW.length === 0) return;
 
+  try { sheet.showRows(2, lastRow - 1); } catch(_) {}
   range.clearContent();
   sheet.getRange(2, 1, nieuweW.length, numCols).setValues(nieuweW);
   var slr = sheet.getLastRow();

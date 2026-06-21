@@ -454,6 +454,7 @@ function ruimPersoneelsOudRijenOp_(ss, jaar, persDataPreloaded) {
   var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
   if (!sheet || sheet.getLastRow() < 2) return;
   var data = Array.isArray(persDataPreloaded) ? persDataPreloaded : sheet.getRange(2, 1, sheet.getLastRow() - 1, 11).getValues();
+  try { sheet.showRows(2, data.length); } catch(_) {}
   for (var i = 0; i < data.length; i++) {
     var geldigheid = (data[i][8]||'').toString().trim();
     var melding    = (data[i][10]||'').toString().trim().toLowerCase();

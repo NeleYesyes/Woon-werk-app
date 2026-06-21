@@ -401,3 +401,58 @@ function corrigeerRijksregFormaat() {
   Logger.log('  Totaal rijen : ' + (data.length - 1));
   Logger.log('══════════════════════════════════════════════════════');
 }
+
+
+// ─── EENMALIG HERSTEL PERSONEELSMELDINGEN ────────────────────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer herstelPersoneelsMeldingen en klik ▶ Uitvoeren.
+// Herstelt kolommen I, J en/of K die gewist werden door een test met een toekomstig jaar.
+// Kolom J (details van de wijziging) voor "gewijzigd"-rijen is permanent verloren en wordt niet hersteld.
+
+function herstelPersoneelsMeldingen() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) { Logger.log('Geen gegevens gevonden.'); return; }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 11).getValues();
+
+  // Bouw een map van email → meest recente "Tot"-datum
+  var totPerEmail = {};
+  for (var i = 0; i < data.length; i++) {
+    var gel = (data[i][8]||'').toString().trim();
+    var em  = (data[i][7]||'').toString().trim().toLowerCase();
+    var m   = gel.match(/^Tot\s+(\d{2}\/\d{2}\/\d{4})/);
+    if (m && em) totPerEmail[em] = m[1];
+  }
+
+  var aantalNieuw = 0, aantalGewijzigd = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var rijnr      = i + 2;
+    var geldigheid = (data[i][8]||'').toString().trim();
+    var meldDetail = (data[i][9]||'').toString().trim();
+    var melding    = (data[i][10]||'').toString().trim();
+    var email      = (data[i][7]||'').toString().trim().toLowerCase();
+
+    // Sla "Tot"-rijen (archiefregels) over
+    if (geldigheid.match(/^Tot\s+/)) continue;
+
+    // Geval 1: "Nieuw personeelslid"-rij waarvan kolom K gewist is
+    if (melding === '' && meldDetail.indexOf('Nieuw personeelslid') === 0) {
+      sheet.getRange(rijnr, 11).setValue('nieuw');
+      aantalNieuw++;
+      Logger.log('Rij ' + rijnr + ': kolom K hersteld naar "nieuw"');
+      continue;
+    }
+
+    // Geval 2: gewijzigde rij waarvan kolom I, J én K gewist zijn
+    if (geldigheid === '' && meldDetail === '' && melding === '' && email && totPerEmail[email]) {
+      sheet.getRange(rijnr, 9).setValue('Vanaf ' + totPerEmail[email]);
+      sheet.getRange(rijnr, 11).setValue('gewijzigd');
+      aantalGewijzigd++;
+      Logger.log('Rij ' + rijnr + ': kolom I hersteld naar "Vanaf ' + totPerEmail[email] + '", kolom K naar "gewijzigd"');
+    }
+  }
+
+  Logger.log('Herstel voltooid: ' + aantalNieuw + ' nieuw-rijen, ' + aantalGewijzigd + ' gewijzigd-rijen bijgewerkt.');
+  try { verversKwartaaloverzichtAlsBestaat_(); } catch(_) {}
+}
