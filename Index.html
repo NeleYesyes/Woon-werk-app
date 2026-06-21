@@ -136,6 +136,13 @@
     .rit-item.woonwerk { border-left-color: var(--quaternary); }
     .rit-item.dienst   { border-left-color: var(--secondary); }
     .rit-item.in-bewerk { background: #fffbeb; border-color: #fbbf24; }
+    .rit-item.afgekeurd { background: #fff1f2; border-color: #fda4af; border-left-color: #dc2626; }
+    .afgekeurd-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fee2e2; color: #dc2626;
+      border-radius: 6px; padding: 3px 8px;
+      font-size: 11px; font-weight: 700; margin-top: 4px;
+    }
     .rit-hoofd-rij { display: flex; align-items: flex-start; gap: 10px; }
     .rit-info { flex: 1; min-width: 0; }
     .rit-datum { font-size: 11px; color: #64748b; }
@@ -1253,15 +1260,15 @@ function renderRitten(kat) {
   var el = document.getElementById(kat + '-lijst');
 
   if (kat === 'fiets') {
-    var totaal = ritten.reduce(function(s,r){ return s + (parseFloat(r.km)||0); }, 0);
+    var totaal = ritten.reduce(function(s,r){ return r.afgekeurd ? s : s + (parseFloat(r.km)||0); }, 0);
     document.getElementById('fiets-totaal').textContent = totaal.toFixed(2).replace('.',',') + ' km';
   }
   if (kat === 'woonwerk') {
-    var totaalBedrag = ritten.reduce(function(s,r){ return s + (parseFloat(r.bedrag)||0); }, 0);
+    var totaalBedrag = ritten.reduce(function(s,r){ return r.afgekeurd ? s : s + (parseFloat(r.bedrag)||0); }, 0);
     document.getElementById('woonwerk-totaal').textContent = '€ ' + totaalBedrag.toFixed(2).replace('.',',');
   }
   if (kat === 'dienst') {
-    var totaalKm = ritten.reduce(function(s,r){ return s + (parseFloat(r.km)||0); }, 0);
+    var totaalKm = ritten.reduce(function(s,r){ return r.afgekeurd ? s : s + (parseFloat(r.km)||0); }, 0);
     document.getElementById('dienst-totaal').textContent = totaalKm.toFixed(2).replace('.',',') + ' km';
   }
 
@@ -1273,24 +1280,28 @@ function renderRitten(kat) {
   var leesonly = isLeesonly_(S.huidigKw[kat], S.weergaveJaar || S.jaar);
   var html = '';
   ritten.forEach(function(r) {
+    var isAfgekeurd = !!r.afgekeurd;
     var datStr = r.datum
       ? ((kat === 'fiets' || kat === 'woonwerk') ? formatMaandJaar_(r.datum) : r.datum.split('-').reverse().join('/'))
       : '—';
-    html += '<div class="rit-item ' + kat + '" data-id="' + r.id + '">';
+    html += '<div class="rit-item ' + kat + (isAfgekeurd ? ' afgekeurd' : '') + '" data-id="' + r.id + '">';
     html += '<div class="rit-hoofd-rij">';
     html += '<div class="rit-info">';
     html += '<div class="rit-datum">📅 ' + datStr + '</div>';
 
     if (kat === 'fiets') {
       html += '<div class="rit-hoofd">' + esc(r.bestemming || '—') + '</div>';
-      html += '<div class="rit-sub">🚴 ' + (r.km||0) + ' km</div>';
+      html += '<div class="rit-sub">🚴 ' + (isAfgekeurd ? '<s style="color:#94a3b8">' : '') + (r.km||0) + ' km' + (isAfgekeurd ? '</s>' : '') + '</div>';
     } else if (kat === 'woonwerk') {
       html += '<div class="rit-hoofd">' + esc(r.van||'—') + ' → ' + esc(r.naar||'—') + '</div>';
-      var bedragStr = r.bedrag > 0 ? ' · € ' + parseFloat(r.bedrag).toFixed(2).replace('.',',') : '';
+      var bedragStr = r.bedrag > 0 ? ' · ' + (isAfgekeurd ? '<s style="color:#94a3b8">' : '') + '€ ' + parseFloat(r.bedrag).toFixed(2).replace('.',',') + (isAfgekeurd ? '</s>' : '') : '';
       html += '<div class="rit-sub">🚆 ' + esc(r.vervoer||'—') + bedragStr + '</div>';
     } else {
       html += '<div class="rit-hoofd">' + esc(r.bestemming||'—') + '</div>';
-      html += '<div class="rit-sub">🚗 ' + (r.km||0) + ' km · ' + esc(r.doel||'—') + '</div>';
+      html += '<div class="rit-sub">🚗 ' + (isAfgekeurd ? '<s style="color:#94a3b8">' : '') + (r.km||0) + ' km' + (isAfgekeurd ? '</s>' : '') + ' · ' + esc(r.doel||'—') + '</div>';
+    }
+    if (isAfgekeurd) {
+      html += '<div class="afgekeurd-badge">🚫 Afgekeurd — wordt niet uitbetaald</div>';
     }
 
     html += '</div>'; // /rit-info

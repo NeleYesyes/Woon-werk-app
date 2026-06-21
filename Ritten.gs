@@ -88,6 +88,11 @@ function getRitten(categorie, jaar, kwartaal) {
         var bu = extractUrlUitFormule_((formules[i]||[])[10]) || (data[i][10]||'').toString();
         rit.bestandUrl = bu; rit.bestandId = fileIdUitUrl_(bu);
       }
+      var _goedkIdx = (categorie === 'fiets') ? 10 : 12;
+      var _beeldIdx = (categorie === 'fiets') ? 12 : 14;
+      var _nicoStat  = ((data[i]||[])[_goedkIdx]||'').toString().trim();
+      var _beeldStat = ((data[i]||[])[_beeldIdx]||'').toString().trim();
+      rit.afgekeurd = _nicoStat === 'Nee, afgekeurd' || _beeldStat === 'Nee, afgekeurd';
       result.push(rit);
     }
     result.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
