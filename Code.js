@@ -55,8 +55,8 @@ var STATUS_CONTROLE  = 'Controle uitgevoerd';
 var STATUS_BETALING  = 'Betaling verwerkt';
 
 function statusKleur_(status) {
-  if (status === STATUS_BETALING) return '#fef9c3';
-  if (status === STATUS_CONTROLE) return '#bbf7d0';
+  if (status === STATUS_BETALING) return '#bbf7d0';
+  if (status === STATUS_CONTROLE) return '#fef9c3';
   return '#f1f5f9';
 }
 
@@ -74,6 +74,7 @@ function onOpen() {
     .addItem('Kwartaaloverzicht vernieuwen', 'maakKwartaaloverzicht')
     .addItem('Tabbladen sorteren op personeelslid', 'sorteerVerplaatsingenSheets')
     .addItem('Goedkeuringkolommen instellen', 'stelGoedkeuringKolommenIn')
+    .addItem('Automatische triggers installeren', 'installeerBenodigdeTriggers')
     .addSeparator()
     .addItem('Installeer wekelijkse backup', 'installeerWekelijkseBackup')
     .addItem('Maak nu een backup', 'maakBackupNu')

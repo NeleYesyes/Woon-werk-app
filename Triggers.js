@@ -1,5 +1,96 @@
 // ─── TRIGGERS ────────────────────────────────────────────────────────────────
 
+function onEdit(e) {
+  // Lichte simple-trigger fallback: bewaar alleen betaalstatussen.
+  // De volledige logica blijft in de installable trigger onEditJaar(e), zodat acties
+  // met autorisatie (rebuilds, rijen tonen/verbergen, ScriptApp) niet dubbel lopen.
+  try { bewaarBetaalStatusEditUitEvent_(e); } catch(err) { Logger.log('onEdit fallback fout: ' + err); }
+}
+
+function bepaalKwartaalStatusContextVoorRij_(sheet, rijnr) {
+  if (!sheet || rijnr <= 3) return null;
+  var jaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
+  var waarden = sheet.getRange(4, 1, rijnr - 3, 1).getValues();
+  var kw = 0;
+  var sectie = '';
+
+  for (var i = 0; i < waarden.length; i++) {
+    var label = (waarden[i][0] || '').toString();
+    var kwMatch = label.match(/Kwartaal\s+(\d)/);
+    if (kwMatch) kw = parseInt(kwMatch[1]);
+    if (label.indexOf('Fietsvergoeding') > -1) sectie = 'fiets';
+    if (label.indexOf('Woon-Werk') > -1) sectie = 'woonwerk';
+    if (label.indexOf('Dienstverplaatsing') > -1) sectie = 'dienst';
+  }
+
+  if (!jaar || !kw || !sectie) return null;
+  return { jaar: jaar, kw: kw, sectie: sectie };
+}
+
+function bewaarBetaalStatusEditUitEvent_(e) {
+  if (!e || !e.range) return false;
+  var sheet = e.range.getSheet();
+  if (!sheet || sheet.getName() !== 'Kwartaaloverzicht') return false;
+  if (e.range.getColumn() !== 11 || e.range.getRow() <= 3) return false;
+  if (e.range.getNumRows && (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1)) return false;
+
+  var status = (e.range.getValue() || '').toString().trim();
+  if (!isBetaalStatus_(status)) return false;
+
+  var rijnr = e.range.getRow();
+  var colIWaarde = sheet.getRange(rijnr, 9).getValue();
+  var colJWaarde = sheet.getRange(rijnr, 10).getValue();
+
+  // Headerrijen hebben in I/J technische rijnummers; meldingsrijen hebben in J een kwartaalnummer.
+  if (typeof colIWaarde === 'number' && colIWaarde > 0 && typeof colJWaarde === 'number' && colJWaarde > 0) return false;
+  if ((colIWaarde || '').toString().indexOf('@') > -1 && parseInt(colJWaarde) > 0) return false;
+
+  var context = bepaalKwartaalStatusContextVoorRij_(sheet, rijnr);
+  if (!context) return false;
+
+  var email = (colIWaarde || '').toString().trim().toLowerCase();
+  if (email.indexOf('@') === -1) email = '';
+  var officieleNaam = (sheet.getRange(rijnr, 2).getValue() || '').toString().trim();
+  if (!email && !officieleNaam) return false;
+
+  var opgeslagen = bewaarBetaalStatus_(context.jaar, context.kw, context.sectie, email, officieleNaam, status);
+  if (opgeslagen) e.range.setBackground(statusKleur_(status)).setFontColor('#334155');
+  return opgeslagen;
+}
+
+function verwerkKwartaaloverzichtKolomKEdit_(e) {
+  var sheet = e.range.getSheet();
+  if (sheet.getName() !== 'Kwartaaloverzicht' || e.range.getColumn() !== 11 || e.range.getRow() <= 3) return false;
+
+  var nieuweWaarde = (e.range.getValue()||'').toString().trim();
+  var colIWaarde   = sheet.getRange(e.range.getRow(), 9).getValue();
+  var colJWaarde   = sheet.getRange(e.range.getRow(), 10).getValue();
+
+  // Header-rij: kolom I en J bevatten technische rijnummers, kolom K is de Stad Ieper-checkbox.
+  if (typeof colIWaarde === 'number' && colIWaarde > 0 && typeof colJWaarde === 'number' && colJWaarde > 0) {
+    verwerkKwartaalSlot_(sheet, e.range.getRow(), e.range.getValue());
+    return true;
+  }
+
+  // Melding-rij: kolom I bevat een e-mailadres en kolom J een kwartaalnummer.
+  // Gewone datarijen hebben ook soms een e-mail in I, maar J blijft daar leeg.
+  var notifEmail = (colIWaarde||'').toString().trim();
+  var meldKw     = parseInt(colJWaarde) || 0;
+  if (notifEmail.indexOf('@') > -1 && meldKw > 0) {
+    var meldJaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
+    if (nieuweWaarde === 'Opgelet: wijziging') {
+      e.range.setBackground('#dc2626').setFontColor('#ffffff');
+    }
+    clearMeldingViaStatus_(notifEmail, nieuweWaarde, meldKw, meldJaar);
+    return true;
+  }
+
+  // Gewone betaalstatusrij: meteen persistent opslaan, zodat latere rebuilds de keuze behouden.
+  if (bewaarBetaalStatusEditUitEvent_(e)) return true;
+  if (isBetaalStatus_(nieuweWaarde)) e.range.setBackground(statusKleur_(nieuweWaarde)).setFontColor('#334155');
+  return true;
+}
+
 function verwerkKwartaalSlot_(kwSheet, hdrRij, lockWaarde) {
   var isLocked = (lockWaarde === true || lockWaarde === 'TRUE' || lockWaarde === 'true');
   kwSheet.getRange(hdrRij, 11).setBackground(isLocked ? '#bbf7d0' : '#dbeafe');
@@ -73,7 +164,7 @@ function toonRitRijenVoorKwartaal_(ss, jaar, kw) {
 function installeerJaarTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
     var fn = t.getHandlerFunction();
-    if (fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_' || fn === 'onChangeStructuur') ScriptApp.deleteTrigger(t);
+    if (fn === 'onEdit' || fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_' || fn === 'onChangeStructuur') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('onEditJaar').forSpreadsheet(CONFIG.SPREADSHEET_ID).onEdit().create();
   ScriptApp.newTrigger('onChangeStructuur').forSpreadsheet(CONFIG.SPREADSHEET_ID).onChange().create();
@@ -87,6 +178,10 @@ function installeerJaarTrigger() {
       '• Het Kwartaaloverzicht wordt elk uur automatisch gecontroleerd en hersteld indien nodig.'
     );
   } catch(_) {}
+}
+
+function installeerBenodigdeTriggers() {
+  installeerJaarTrigger();
 }
 
 function onChangeStructuur(e) {
@@ -383,30 +478,7 @@ function onEditJaar(e) {
       }
     }
 
-    if (e.range.getColumn() === 11 && e.range.getRow() > 3) {
-      var nieuweWaarde = (e.range.getValue()||'').toString().trim();
-      var colIWaarde   = sheet.getRange(e.range.getRow(), 9).getValue();
-      var colINum      = parseInt(colIWaarde);
-      // Header-rij: kolom I bevat een rijnummer (positief getal), geen e-mail
-      if (!isNaN(colINum) && colINum > 0) {
-        verwerkKwartaalSlot_(sheet, e.range.getRow(), nieuweWaarde);
-        return;
-      }
-      // Melding-rij: kolom I bevat een e-mailadres ÉN kolom J een kwartaalnummer (1–4)
-      // Persoonsrijen hebben ook een e-mail in kolom I (nieuw), maar kolom J is daar leeg.
-      var notifEmail = (colIWaarde||'').toString().trim();
-      var meldKw     = parseInt(sheet.getRange(e.range.getRow(), 10).getValue()) || 0;
-      if (notifEmail.indexOf('@') > -1 && meldKw > 0) {
-        var meldJaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
-        if (nieuweWaarde === 'Opgelet: wijziging') {
-          e.range.setBackground('#dc2626').setFontColor('#ffffff');
-        }
-        clearMeldingViaStatus_(notifEmail, nieuweWaarde, meldKw, meldJaar);
-        return;
-      }
-      // Gewone statusrij (ook persoonsrijen met e-mail in kolom I maar zonder kwartaal in kolom J)
-      e.range.setBackground(statusKleur_(nieuweWaarde));
-    }
+    if (verwerkKwartaaloverzichtKolomKEdit_(e)) return;
   } catch(err) { Logger.log('onEditJaar fout: ' + err); }
 }
 

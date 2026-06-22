@@ -16,6 +16,82 @@ function getTarieven_(jaar) {
   return { fiets: fiets, dienst: dienst };
 }
 
+var BETAALSTATUS_PROP_PREFIX = 'betaalStatus_';
+
+function isBetaalStatus_(status) {
+  return status === STATUS_INGEDIEND || status === STATUS_CONTROLE || status === STATUS_BETALING;
+}
+
+function normaliseerBetaalStatusId_(waarde) {
+  return (waarde || '').toString().trim().toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9@._ -]/g, '_')
+    .replace(/[ |]+/g, '_');
+}
+
+function maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam) {
+  var normJaar = parseInt(jaar);
+  var normKw   = parseInt(kw);
+  var normSectie = (sectie || '').toString().trim().toLowerCase();
+  var normEmail  = (email || '').toString().trim().toLowerCase();
+  var normNaam   = (officieleNaam || '').toString().trim();
+  var idType = normEmail ? 'email' : 'naam';
+  var idWaarde = normEmail || normNaam;
+  if (!normJaar || !normKw || !normSectie || !idWaarde) return '';
+  return BETAALSTATUS_PROP_PREFIX + [
+    normJaar,
+    normKw,
+    normSectie,
+    idType,
+    normaliseerBetaalStatusId_(idWaarde)
+  ].join('_');
+}
+
+function zetStatusInLookup_(lookup, sleutel, status) {
+  if (!sleutel || !isBetaalStatus_(status)) return;
+  var bestaand = lookup[sleutel];
+  if (!bestaand || statusRang_(status) >= statusRang_(bestaand)) lookup[sleutel] = status;
+}
+
+function bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, status) {
+  if (!isBetaalStatus_(status)) return false;
+  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
+  if (!sleutel) return false;
+  PropertiesService.getScriptProperties().setProperty(sleutel, status);
+  return true;
+}
+
+function leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam) {
+  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
+  if (!sleutel) return '';
+  var status = PropertiesService.getScriptProperties().getProperty(sleutel);
+  return isBetaalStatus_(status) ? status : '';
+}
+
+function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
+  if (!statusLookup) return '';
+  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
+  if (sleutel && isBetaalStatus_(statusLookup[sleutel])) return statusLookup[sleutel];
+
+  // Backwards compatibiliteit met oudere, pipe-gebaseerde sleutels uit vorige rebuilds.
+  var prefix = jaar + '|' + kw + '|' + sectie + '|';
+  var legacy = [];
+  if (email) legacy.push(prefix + email.toString().trim().toLowerCase());
+  if (officieleNaam) legacy.push(prefix + officieleNaam.toString().trim());
+  if (domein) legacy.push(prefix + domein.toString().trim());
+  for (var i = 0; i < legacy.length; i++) {
+    if (isBetaalStatus_(statusLookup[legacy[i]])) return statusLookup[legacy[i]];
+  }
+  return '';
+}
+
+function bepaalBetaalStatusVoorRij_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
+  // Volgorde is bewust: permanente property wint altijd van het zojuist gelezen oude blad.
+  return leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam)
+      || leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein)
+      || STATUS_INGEDIEND;
+}
+
 function leesStatussenUitBestaandeSheet_(sheet) {
   if (!sheet) return {};
   var result = {};
@@ -24,33 +100,26 @@ function leesStatussenUitBestaandeSheet_(sheet) {
   var jaar    = isNaN(jaarVal) ? new Date().getFullYear() : jaarVal;
   var data    = sheet.getDataRange().getValues();
   var huidigKw = 0, huidigeSectie = '';
-  var counter = {}; 
 
   for (var i = 0; i < data.length; i++) {
     var col0 = (data[i][0]||'').toString();
     for (var q = 1; q <= 4; q++) { if (col0.indexOf('Kwartaal ' + q) > -1) { huidigKw = q; break; } }
-    if (col0.indexOf('Fietsvergoeding')    > -1) { huidigeSectie = 'fiets'; counter = {}; }
-    if (col0.indexOf('Woon-Werk')          > -1) { huidigeSectie = 'woonwerk'; counter = {}; }
-    if (col0.indexOf('Dienstverplaatsing') > -1) { huidigeSectie = 'dienst'; counter = {}; }
+    if (col0.indexOf('Fietsvergoeding')    > -1) huidigeSectie = 'fiets';
+    if (col0.indexOf('Woon-Werk')          > -1) huidigeSectie = 'woonwerk';
+    if (col0.indexOf('Dienstverplaatsing') > -1) huidigeSectie = 'dienst';
     
     var status = (data[i][10]||'').toString().trim();
-    if ((status === STATUS_INGEDIEND || status === STATUS_CONTROLE || status === STATUS_BETALING) && huidigKw > 0 && huidigeSectie) {
+    if (isBetaalStatus_(status) && huidigKw > 0 && huidigeSectie) {
       var email  = (data[i][8]||'').toString().trim().toLowerCase(); 
       var naam   = (data[i][1]||'').toString().trim();               
       var prefix = jaar + '|' + huidigKw + '|' + huidigeSectie + '|';
-      var basisId = email ? email : naam;
-      if (!basisId) continue;
-      
-      counter[basisId] = (counter[basisId] || 0) + 1;
-      result[prefix + basisId + '|' + counter[basisId]] = status;
-      result[prefix + basisId] = status;
-      
-      var oudeSleutel = prefix + naam;
-      result[oudeSleutel] = status;
-      if (!email) {
-        var domein = col0.replace(/^Totaal\s+/,'').trim();
-        if (domein) result[prefix + domein] = status;
-      }
+      var domein = (data[i][0]||'').toString().replace(/^Totaal\s+/,'').trim();
+      if (!email && !naam) continue;
+
+      zetStatusInLookup_(result, maakBetaalStatusSleutel_(jaar, huidigKw, huidigeSectie, email, naam), status);
+      if (email) zetStatusInLookup_(result, prefix + email, status);
+      if (naam)  zetStatusInLookup_(result, prefix + naam, status);
+      if (domein) zetStatusInLookup_(result, prefix + domein, status);
     }
   }
   return result;
@@ -91,6 +160,19 @@ function getQuarterlyOverview(quarter, year) {
 }
 
 function maakKwartaaloverzicht(terugNaamParam) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    Logger.log('⚠️ Kwartaaloverzicht wordt al vernieuwd; tweede rebuild overgeslagen.');
+    return;
+  }
+  try {
+    maakKwartaaloverzichtZonderLock_(terugNaamParam);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function maakKwartaaloverzichtZonderLock_(terugNaamParam) {
   var terugNaam;
   if (terugNaamParam) {
     terugNaam = terugNaamParam;
@@ -684,24 +766,16 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       }
       sheet.setRowHeight(rij, 22);
 
-if (!statusLookup) statusLookup = {};
-      if (!statusLookup._counters) statusLookup._counters = {};
-      
-      var basisId = g.email ? g.email.toString().trim().toLowerCase() : (g.naam ? g.naam.toString().trim() : '');
-      var prefixSleutel = jaar + '|' + kw + '|' + sectie + '|';
-      var counterSleutel = prefixSleutel + basisId;
-      
-      statusLookup._counters[counterSleutel] = (statusLookup._counters[counterSleutel] || 0) + 1;
-      var uniekeSleutel = counterSleutel + '|' + statusLookup._counters[counterSleutel];
-      
-      var primSleutel = jaar+'|'+kw+'|'+sectie+'|'+(g.email || g.adres);
-      var oudeSleutel = jaar+'|'+kw+'|'+sectie+'|'+g.naam;
-      
-      var bestaandeStatus = statusLookup[uniekeSleutel]
-                          || statusLookup[counterSleutel]
-                          || statusLookup[primSleutel]
-                          || statusLookup[oudeSleutel]
-                          || STATUS_INGEDIEND;
+      if (!statusLookup) statusLookup = {};
+      var bestaandeStatus = bepaalBetaalStatusVoorRij_(
+        statusLookup,
+        jaar,
+        kw,
+        sectie,
+        g.email ? g.email.toString().trim().toLowerCase() : '',
+        g.adres ? g.adres.toString().trim() : '',
+        g.naam ? g.naam.toString().trim() : ''
+      );
 
       sheet.getRange(rij, 11).setValue(bestaandeStatus).setDataValidation(statusValidatie)
         .setBackground(statusKleur_(bestaandeStatus)).setFontSize(9).setFontColor('#334155')
