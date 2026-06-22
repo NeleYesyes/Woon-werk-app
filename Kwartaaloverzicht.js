@@ -47,6 +47,15 @@ function maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam) {
   ].join('_');
 }
 
+function maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam) {
+  var sleutels = [];
+  var emailSleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, '');
+  var naamSleutel  = maakBetaalStatusSleutel_(jaar, kw, sectie, '', officieleNaam);
+  if (emailSleutel) sleutels.push(emailSleutel);
+  if (naamSleutel && naamSleutel !== emailSleutel) sleutels.push(naamSleutel);
+  return sleutels;
+}
+
 function zetStatusInLookup_(lookup, sleutel, status) {
   if (!sleutel || !isBetaalStatus_(status)) return;
   var bestaand = lookup[sleutel];
@@ -55,23 +64,35 @@ function zetStatusInLookup_(lookup, sleutel, status) {
 
 function bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, status) {
   if (!isBetaalStatus_(status)) return false;
-  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
-  if (!sleutel) return false;
-  PropertiesService.getScriptProperties().setProperty(sleutel, status);
+  var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  if (sleutels.length === 0) return false;
+  var props = PropertiesService.getScriptProperties();
+  sleutels.forEach(function(sleutel) { props.setProperty(sleutel, status); });
   return true;
 }
 
 function leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam) {
-  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
-  if (!sleutel) return '';
-  var status = PropertiesService.getScriptProperties().getProperty(sleutel);
-  return isBetaalStatus_(status) ? status : '';
+  var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  if (sleutels.length === 0) return '';
+  var props = PropertiesService.getScriptProperties();
+  for (var i = 0; i < sleutels.length; i++) {
+    var status = props.getProperty(sleutels[i]);
+    if (isBetaalStatus_(status)) {
+      // Migreer aliasen meteen mee: vindt bv. naam-key de status, dan krijgt de email-key
+      // dezelfde waarde zodat volgende rebuilds niet meer afhankelijk zijn van de fallback.
+      sleutels.forEach(function(sleutel) { props.setProperty(sleutel, status); });
+      return status;
+    }
+  }
+  return '';
 }
 
 function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
   if (!statusLookup) return '';
-  var sleutel = maakBetaalStatusSleutel_(jaar, kw, sectie, email, officieleNaam);
-  if (sleutel && isBetaalStatus_(statusLookup[sleutel])) return statusLookup[sleutel];
+  var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  for (var si = 0; si < sleutels.length; si++) {
+    if (isBetaalStatus_(statusLookup[sleutels[si]])) return statusLookup[sleutels[si]];
+  }
 
   // Backwards compatibiliteit met oudere, pipe-gebaseerde sleutels uit vorige rebuilds.
   var prefix = jaar + '|' + kw + '|' + sectie + '|';
@@ -85,11 +106,68 @@ function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, offic
   return '';
 }
 
+function isBetaalStatusDebugAan_() {
+  return PropertiesService.getScriptProperties().getProperty('debugBetaalstatus') === 'true';
+}
+
+function logBetaalStatusBeslissing_(info) {
+  if (!isBetaalStatusDebugAan_()) return;
+  Logger.log(
+    'betaalstatus | sleutel=' + info.sleutel +
+    ' | naam=' + info.naam +
+    ' | email=' + info.email +
+    ' | sectie=' + info.sectie +
+    ' | jaar=' + info.jaar +
+    ' | kw=' + info.kw +
+    ' | property=' + (info.propertyStatus || '') +
+    ' | oudeSheet=' + (info.lookupStatus || '') +
+    ' | geschreven=' + info.geschrevenStatus
+  );
+}
+
+function stelBetaalStatusDebugLoggingIn(aan) {
+  var props = PropertiesService.getScriptProperties();
+  if (aan === true || aan === 'true' || aan === 'TRUE') props.setProperty('debugBetaalstatus', 'true');
+  else props.deleteProperty('debugBetaalstatus');
+}
+
+function zetBetaalStatusDebugLoggingAan() {
+  stelBetaalStatusDebugLoggingIn(true);
+}
+
+function zetBetaalStatusDebugLoggingUit() {
+  stelBetaalStatusDebugLoggingIn(false);
+}
+
+function bepaalBetaalStatusBeslissing_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
+  var propertyStatus = leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam);
+  var lookupStatus   = leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein);
+  var geschreven     = propertyStatus || lookupStatus || STATUS_INGEDIEND;
+
+  // Een niet-default status die alleen nog in het oude overzicht staat, wordt meteen
+  // gepromoveerd naar PropertiesService. Zo kan die fallback niet na enkele rebuilds verdampen.
+  if (!propertyStatus && lookupStatus && lookupStatus !== STATUS_INGEDIEND) {
+    bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, lookupStatus);
+    propertyStatus = lookupStatus;
+  }
+
+  var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  logBetaalStatusBeslissing_({
+    sleutel: sleutels.join(' ; '),
+    naam: officieleNaam || '',
+    email: email || '',
+    sectie: sectie,
+    jaar: jaar,
+    kw: kw,
+    propertyStatus: propertyStatus,
+    lookupStatus: lookupStatus,
+    geschrevenStatus: geschreven
+  });
+  return { status: geschreven, propertyStatus: propertyStatus, lookupStatus: lookupStatus };
+}
+
 function bepaalBetaalStatusVoorRij_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
-  // Volgorde is bewust: permanente property wint altijd van het zojuist gelezen oude blad.
-  return leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam)
-      || leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein)
-      || STATUS_INGEDIEND;
+  return bepaalBetaalStatusBeslissing_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein).status;
 }
 
 function leesStatussenUitBestaandeSheet_(sheet) {
@@ -159,17 +237,23 @@ function getQuarterlyOverview(quarter, year) {
   });
 }
 
-function maakKwartaaloverzicht(terugNaamParam) {
+function voerMetKwartaaloverzichtLock_(context, actie) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
-    Logger.log('⚠️ Kwartaaloverzicht wordt al vernieuwd; tweede rebuild overgeslagen.');
-    return;
+    Logger.log('⚠️ Kwartaaloverzicht wordt al vernieuwd; ' + context + ' overgeslagen.');
+    return null;
   }
   try {
-    maakKwartaaloverzichtZonderLock_(terugNaamParam);
+    return actie();
   } finally {
     lock.releaseLock();
   }
+}
+
+function maakKwartaaloverzicht(terugNaamParam) {
+  return voerMetKwartaaloverzichtLock_('maakKwartaaloverzicht', function() {
+    return maakKwartaaloverzichtZonderLock_(terugNaamParam);
+  });
 }
 
 function maakKwartaaloverzichtZonderLock_(terugNaamParam) {
@@ -466,20 +550,39 @@ function maakKwartaaloverzichtZonderLock_(terugNaamParam) {
 }
 
 function verversKwartaaloverzichtAlsBestaat_(terugNaamParam) {
-  try {
-    // Eventuele nog geplande refresh annuleren (na directe aanroep niet meer nodig)
-    ScriptApp.getProjectTriggers().forEach(function(t) {
-      if (t.getHandlerFunction() === 'verversKwartaaloverzichtGetriggerd') ScriptApp.deleteTrigger(t);
-    });
-    // Direct herbouwen: time-based triggers hebben een minimumvertraging van ~1 minuut,
-    // waardoor .after(5000) toch pas na ±1 minuut vuurde. Installable triggers draaien
-    // 6 minuten, dus maakKwartaaloverzicht() past hier gewoon in.
-    maakKwartaaloverzicht(terugNaamParam);
-  } catch(e) { Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e); }
+  return voerMetKwartaaloverzichtLock_('verversKwartaaloverzichtAlsBestaat_', function() {
+    try {
+      // Eventuele nog geplande refresh annuleren (na directe aanroep niet meer nodig).
+      // Dit gebeurt binnen dezelfde lock als de rebuild, zodat twee refreshflows elkaar
+      // niet met een tussenversie van Kwartaaloverzicht kunnen kruisen.
+      ScriptApp.getProjectTriggers().forEach(function(t) {
+        if (t.getHandlerFunction() === 'verversKwartaaloverzichtGetriggerd') ScriptApp.deleteTrigger(t);
+      });
+      // Direct herbouwen: time-based triggers hebben een minimumvertraging van ~1 minuut,
+      // waardoor .after(5000) toch pas na ±1 minuut vuurde. Installable triggers draaien
+      // 6 minuten, dus de rebuild past hier gewoon in.
+      return maakKwartaaloverzichtZonderLock_(terugNaamParam);
+    } catch(e) { Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e); }
+    return null;
+  });
 }
 
 function verversKwartaaloverzichtGetriggerd() {
-  try { maakKwartaaloverzicht(); } catch(e) { Logger.log('⚠️ Getriggerde refresh mislukt: ' + e); }
+  return voerMetKwartaaloverzichtLock_('verversKwartaaloverzichtGetriggerd', function() {
+    try { return maakKwartaaloverzichtZonderLock_(); }
+    catch(e) { Logger.log('⚠️ Getriggerde refresh mislukt: ' + e); }
+    return null;
+  });
+}
+
+function controleerKwartaaloverzicht_() {
+  try {
+    var ss = getSS_();
+    if (!ss.getSheetByName('Kwartaaloverzicht')) {
+      Logger.log('⚠️ Kwartaaloverzicht ontbreekt — automatische herbouw gestart.');
+      maakKwartaaloverzicht();
+    }
+  } catch(e) { Logger.log('⚠️ Controle Kwartaaloverzicht mislukt: ' + e); }
 }
 
 function stelKwartaaloverzichtBeveiligingIn() {
@@ -524,16 +627,6 @@ function stelKwartaaloverzichtBeveiligingIn() {
       '\n\nKunnen enkel bekijken (niet bewerken):\n' + DENYLIST.join('\n')
     );
   } catch(_) {}
-}
-
-function controleerKwartaaloverzicht_() {
-  try {
-    var ss = getSS_();
-    if (!ss.getSheetByName('Kwartaaloverzicht')) {
-      Logger.log('⚠️ Kwartaaloverzicht ontbreekt — automatische herbouw gestart.');
-      maakKwartaaloverzicht();
-    }
-  } catch(e) { Logger.log('⚠️ Controle Kwartaaloverzicht mislukt: ' + e); }
 }
 
 function verversKwartaaloverzicht() {

@@ -23,7 +23,10 @@ function bepaalKwartaalStatusContextVoorRij_(sheet, rijnr) {
     if (label.indexOf('Dienstverplaatsing') > -1) sectie = 'dienst';
   }
 
-  if (!jaar || !kw || !sectie) return null;
+  if (!jaar || !kw || !sectie) {
+    Logger.log('⚠️ bepaalKwartaalStatusContextVoorRij_ (rij ' + rijnr + '): context onvolledig — kw=' + kw + ', sectie="' + sectie + '", jaar=' + jaar + '. Status zal NIET worden opgeslagen in ScriptProperties.');
+    return null;
+  }
   return { jaar: jaar, kw: kw, sectie: sectie };
 }
 
@@ -46,7 +49,10 @@ function bewaarBetaalStatusEditUitEvent_(e) {
   if ((colIWaarde || '').toString().indexOf('@') > -1 && parseInt(colJWaarde) > 0) return false;
 
   var context = bepaalKwartaalStatusContextVoorRij_(sheet, rijnr);
-  if (!context) return false;
+  if (!context) {
+    Logger.log('⚠️ bewaarBetaalStatusEditUitEvent_ (rij ' + rijnr + '): geen context → status "' + status + '" NIET opgeslagen in ScriptProperties.');
+    return false;
+  }
 
   var email = (colIWaarde || '').toString().trim().toLowerCase();
   if (email.indexOf('@') === -1) email = '';
@@ -87,7 +93,10 @@ function verwerkKwartaaloverzichtKolomKEdit_(e) {
 
   // Gewone betaalstatusrij: meteen persistent opslaan, zodat latere rebuilds de keuze behouden.
   if (bewaarBetaalStatusEditUitEvent_(e)) return true;
-  if (isBetaalStatus_(nieuweWaarde)) e.range.setBackground(statusKleur_(nieuweWaarde)).setFontColor('#334155');
+  if (isBetaalStatus_(nieuweWaarde)) {
+    Logger.log('⚠️ verwerkKolomKEdit (rij ' + e.range.getRow() + '): status "' + nieuweWaarde + '" NIET opgeslagen in ScriptProperties — zie bovenstaande logs voor oorzaak.');
+    e.range.setBackground(statusKleur_(nieuweWaarde)).setFontColor('#334155');
+  }
   return true;
 }
 
