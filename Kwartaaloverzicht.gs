@@ -38,6 +38,8 @@ function leesStatussenUitBestaandeSheet_(sheet) {
       // Primaire sleutel: e-mail of persoonsnaam (nooit domein)
       var primSleutel = prefix + (email || naam);
       if (email || naam) result[primSleutel] = status;
+      // DEBUG — tijdelijk, verwijder na diagnose
+      Logger.log('LEES rij=' + i + ' kw=' + huidigKw + ' sectie=' + huidigeSectie + ' email=[' + email + '] naam=[' + naam + '] status=[' + status + '] sleutel=[' + primSleutel + ']');
       // Overgangsbruggetje: bewaar ook de domein-sleutel als col 9 nog leeg was (oud overzicht)
       if (!email) {
         var domein = col0.replace(/^Totaal\s+/,'').trim();
@@ -45,6 +47,10 @@ function leesStatussenUitBestaandeSheet_(sheet) {
       }
     }
   }
+  // DEBUG
+  var allKeys = Object.keys(result);
+  Logger.log('LEES TOTAAL: ' + allKeys.length + ' sleutels. Alle sleutels+waarden:');
+  allKeys.forEach(function(k) { Logger.log('  KEY=[' + k + '] => [' + result[k] + ']'); });
   return result;
 }
 
@@ -682,6 +688,8 @@ function schrijfCategorie_(sheet, rij, titel, accentKleur, tekstkleur, groepen, 
       var bestaandeStatus = (statusLookup && statusLookup[primSleutel]) ? statusLookup[primSleutel]
                           : (statusLookup && statusLookup[oudeSleutel]) ? statusLookup[oudeSleutel]
                           : STATUS_INGEDIEND;
+      // DEBUG — tijdelijk, verwijder na diagnose
+      Logger.log('SCHRIJF sectie=' + sectie + ' kw=' + kw + ' email=[' + g.email + '] adres=[' + g.adres + '] primSleutel=[' + primSleutel + '] oudeSleutel=[' + oudeSleutel + '] primGevonden=[' + (statusLookup&&statusLookup[primSleutel]) + '] oudeGevonden=[' + (statusLookup&&statusLookup[oudeSleutel]) + '] resultaat=[' + bestaandeStatus + ']');
       sheet.getRange(rij, 11).setValue(bestaandeStatus).setDataValidation(statusValidatie)
         .setBackground(statusKleur_(bestaandeStatus)).setFontSize(9).setFontColor('#334155')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
