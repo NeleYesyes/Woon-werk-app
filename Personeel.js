@@ -1,0 +1,458 @@
+// ─── MELDING WISSEN ──────────────────────────────────────────────────────────
+function clearMelding_(email) {
+  try {
+    var ss    = getSS_();
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var data = sheet.getDataRange().getValues();
+    var lastMatch = -1;
+    for (var i = 1; i < data.length; i++) {
+      if (emailsKommenOvereen_(data[i][7], email)) lastMatch = i;
+    }
+    if (lastMatch >= 0) sheet.getRange(lastMatch + 1, 10, 1, 2).setValues([['', '']]);
+  } catch(e) { Logger.log('clearMelding_: ' + e); }
+}
+
+
+// ─── PERSONEELSGEGEVENS ───────────────────────────────────────────────────────
+
+function getUserData() {
+  try {
+    var email = getEmail_();
+    if (!email) return { error: 'Kon je e-mailadres niet ophalen.' };
+    var ss       = getSS_();
+    var gevonden = null;
+
+    var persSheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (persSheet && persSheet.getLastRow() >= 2) {
+      var persData = persSheet.getDataRange().getValues();
+
+      // Primaire opzoeking: op e-mailadres (exact of zelfde lokaal deel binnen *.ieper.be)
+      for (var i = 1; i < persData.length; i++) {
+        if (emailsKommenOvereen_(persData[i][7], email)) {
+          gevonden = {
+            domein:              (persData[i][0]||'').toString().trim(),
+            naam:                (persData[i][1]||'').toString().trim(),
+            adres:               (persData[i][2]||'').toString().trim(),
+            postcodeGem:         (persData[i][3]||'').toString().trim(),
+            iban:                (persData[i][4]||'').toString().trim(),
+            email:               email,
+            rijksregisternummer: (persData[i][6]||'').toString().trim(),
+            priveEmail:          (persData[i][5]||'').toString().trim(),
+          };
+          // geen break: laatste (meest recente) rij wint
+        }
+      }
+
+      // Fallback: naam afleiden uit e-mailadres (bv. Nele.Moerman@ → "Nele Moerman")
+      // Handig voor handmatig ingevoerd personeel zonder e-mail in kolom H
+      if (!gevonden) {
+        var lokalDeel = email.split('@')[0].replace(/[._-]/g, ' ');
+        for (var j = 1; j < persData.length; j++) {
+          var rijnaam = (persData[j][1]||'').toString();
+          if (isZelfdePersoon_(rijnaam, lokalDeel)) {
+            gevonden = {
+              domein:              (persData[j][0]||'').toString().trim(),
+              naam:                rijnaam.trim(),
+              adres:               (persData[j][2]||'').toString().trim(),
+              postcodeGem:         (persData[j][3]||'').toString().trim(),
+              iban:                (persData[j][4]||'').toString().trim(),
+              email:               email,
+              rijksregisternummer: (persData[j][6]||'').toString().trim(),
+              priveEmail:          (persData[j][5]||'').toString().trim(),
+            };
+            // geen break: laatste rij wint
+          }
+        }
+      }
+    }
+
+    var nu = getEffectiveDate();
+    return {
+      email:          email,
+      personData:     gevonden,
+      naamSuggestie:  gevonden ? null : naamUitEmail_(email),
+      kwartaal:       huidigKwartaal_(),
+      jaar:           nu.getFullYear(),
+      kwartaalInfo:   getCurrentQuarterInfo(),
+      isAdmin:        isAdminEmail(email),
+    };
+  } catch(e) { Logger.log('❌ getUserData: ' + e); return { error: e.toString() }; }
+}
+
+function saveUserDataAlle(personData) {
+  try {
+    var email     = getEmail_();
+    var ss        = getSS_();
+    var persSheet = getOrCreateSheet_(ss, CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    var persData  = persSheet.getLastRow() >= 2 ? persSheet.getDataRange().getValues() : [[]];
+
+    var domein        = (personData.domein         ||'').trim();
+    var naam          = (personData.naam          ||'').trim();
+    var adres         = (personData.adres         ||'').trim();
+    var postcodeGem   = (personData.postcodeGem   ||'').trim();
+    var iban          = (personData.iban          ||'').trim();
+    var rijksreg      = (personData.rijksregisternummer||'').trim();
+    var privmail      = (personData.priveEmail    ||'').trim();
+
+    var bestaandRij = -1;
+    for (var i = 1; i < persData.length; i++) {
+      if (emailsKommenOvereen_(persData[i][7], email)) bestaandRij = i + 1;
+    }
+    // Fallback op naam als e-mailadres niet teruggevonden werd (bv. handmatig ingevoerd personeelslid)
+    if (bestaandRij < 0) {
+      for (var i = 1; i < persData.length; i++) {
+        if (isZelfdePersoon_((persData[i][1]||'').toString(), naam)) bestaandRij = i + 1;
+      }
+    }
+
+    if (bestaandRij > 0) {
+      var oudData         = persData[bestaandRij - 1];
+      var oudDomein       = (oudData[0]||'').toString().trim();
+      var oudeNaam        = (oudData[1]||'').toString().trim();
+      var oudeAdres       = (oudData[2]||'').toString().trim();
+      var oudePostcodeGem = (oudData[3]||'').toString().trim();
+      var oudeIban        = (oudData[4]||'').toString().trim();
+      var oudeRijks       = (oudData[6]||'').toString().trim();
+      var oudePrivmail    = (oudData[5]||'').toString().trim();
+
+      var naamTeOpslaan  = oudeNaam || naamUitEmail_(email);
+      var adresGewijzigd = (adres !== oudeAdres || postcodeGem !== oudePostcodeGem);
+      var andereWijziging = (!isZelfdePersoon_(naam, oudeNaam) || iban !== oudeIban || rijksreg !== oudeRijks || privmail !== oudePrivmail || domein !== oudDomein);
+
+      if (!adresGewijzigd && !andereWijziging) return { ok: true };
+
+      var ingangsDatum = (adresGewijzigd && personData.effectiveDate)
+        ? parseDateStr_(personData.effectiveDate)
+        : getEffectiveDate();
+
+      var geldigTotStr   = 'Tot '   + formatDatumNL_(ingangsDatum);
+      var geldigVanafStr = 'Vanaf ' + formatDatumNL_(ingangsDatum);
+
+      var wijzigingen = [];
+      if (domein !== oudDomein)               wijzigingen.push('Domein: ' + oudDomein + ' → ' + domein);
+      if (!isZelfdePersoon_(naam, oudeNaam))  wijzigingen.push('Naam: ' + oudeNaam + ' → ' + naamTeOpslaan);
+      if (adres !== oudeAdres)                wijzigingen.push('Adres: ' + oudeAdres + ' → ' + adres);
+      if (postcodeGem !== oudePostcodeGem)    wijzigingen.push('Postcode/Gem: ' + oudePostcodeGem + ' → ' + postcodeGem);
+      if (iban !== oudeIban)                  wijzigingen.push('IBAN gewijzigd');
+      if (rijksreg !== oudeRijks)             wijzigingen.push('Rijksregister gewijzigd');
+      if (privmail !== oudePrivmail)          wijzigingen.push('Privé-e-mail gewijzigd');
+
+      // Archiveer huidige rij
+      persSheet.getRange(bestaandRij, 9).setValue(geldigTotStr);
+      persSheet.getRange(bestaandRij, 10, 1, 2).setValues([['', '']]);
+
+      // Voeg nieuwe rij in direct ONDER de huidige rij
+      persSheet.insertRowAfter(bestaandRij);
+      persSheet.getRange(bestaandRij + 1, 1, 1, 11).setValues([[
+        domein, naamTeOpslaan, adres, postcodeGem, iban, privmail, rijksreg, email,
+        geldigVanafStr, wijzigingen.join('; '), 'gewijzigd'
+      ]]);
+
+    } else {
+      var naamOpgeslagen = naamUitEmail_(email);
+      persSheet.appendRow([domein, naamOpgeslagen, adres, postcodeGem, iban, privmail, rijksreg, email, '',
+        'Nieuw personeelslid ingevoerd via de app op ' + formatDatumNL_(getEffectiveDate()), 'nieuw']);
+    }
+
+    // Meteen vernieuwen (niet via timer) zodat de aanpassing zichtbaar is
+    try { sorteerPersoneelsSheet_(ss); } catch(_) {}
+    try { verversKwartaaloverzichtAlsBestaat_(); } catch(_) {}
+    return { ok: true };
+  } catch(e) { Logger.log('❌ saveUserDataAlle: ' + e); return { ok: false, error: e.toString() }; }
+}
+
+function clearMeldingViaStatus_(email, nieuweStatus, handledKw, jaar) {
+  var normEmail = email.toLowerCase().trim().replace(/[^a-z0-9@._-]/g, '_');
+  if (nieuweStatus === 'Wijziging doorgevoerd') {
+    if (handledKw > 0 && jaar > 0) {
+      PropertiesService.getScriptProperties().setProperty('meldingHandledKw_' + normEmail + '_' + jaar, handledKw.toString());
+    }
+  } else if (nieuweStatus === 'Opgelet: wijziging') {
+    if (jaar > 0) {
+      PropertiesService.getScriptProperties().deleteProperty('meldingHandledKw_' + normEmail + '_' + jaar);
+    }
+  } else {
+    return;
+  }
+  verversKwartaaloverzichtAlsBestaat_();
+}
+
+function getPersonData_(email, ss) {
+  var persSheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!persSheet || persSheet.getLastRow() < 2) return {};
+  var data = persSheet.getDataRange().getValues();
+  var result = {};
+  for (var i = 1; i < data.length; i++) {
+    if (emailsKommenOvereen_(data[i][7], email)) {
+      result = {
+        domein:      (data[i][0]||'').toString().trim(),
+        naam:        (data[i][1]||'').toString().trim(),
+        adres:       (data[i][2]||'').toString().trim(),
+        postcodeGem: (data[i][3]||'').toString().trim(),
+        iban:        (data[i][4]||'').toString().trim(),
+      };
+      // geen break: laatste rij wint
+    }
+  }
+  return result;
+}
+
+function bouwPersonenMap_(ss, persDataPreloaded) {
+  var map = {};
+  var data;
+  if (Array.isArray(persDataPreloaded)) {
+    data = persDataPreloaded;
+  } else {
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (!sheet || sheet.getLastRow() < 2) return map;
+    data = sheet.getDataRange().getValues();
+  }
+  for (var i = 1; i < data.length; i++) {
+    var naam = (data[i][1]||'').toString().trim();
+    if (naam) {
+      map[naam] = {
+        domein:      (data[i][0]||'').toString().trim(),
+        adres:       (data[i][2]||'').toString().trim(),
+        postcodeGem: (data[i][3]||'').toString().trim(),
+        iban:        (data[i][4]||'').toString().trim(),
+        rijksreg:    (data[i][6]||'').toString().trim(),
+        melding:     (data[i][10]||'').toString().trim(),
+      };
+    }
+  }
+  return map;
+}
+
+function bouwPersonenMapByEmail_(ss, persDataPreloaded) {
+  var map = {};
+  var data;
+  if (Array.isArray(persDataPreloaded)) {
+    data = persDataPreloaded;
+  } else {
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+    if (!sheet || sheet.getLastRow() < 2) return map;
+    data = sheet.getDataRange().getValues();
+  }
+  for (var i = 1; i < data.length; i++) {
+    var email = (data[i][7]||'').toString().trim().toLowerCase();
+    if (!email) continue;
+    var entry = {
+      naam:     (data[i][1]||'').toString().trim(),
+      domein:   (data[i][0]||'').toString().trim(),
+      rijksreg: (data[i][6]||'').toString().trim(),
+      iban:     (data[i][4]||'').toString().trim(),
+    };
+    map[email] = entry;
+    // Sla ook op onder alternatief domein (academie-ieper.be ↔ ieper.be)
+    if (email.indexOf('@academie-ieper.be') > -1)
+      map[email.replace('@academie-ieper.be', '@ieper.be')] = entry;
+    else if (email.indexOf('@ieper.be') > -1)
+      map[email.replace('@ieper.be', '@academie-ieper.be')] = entry;
+  }
+  return map;
+}
+
+
+// ─── PREVIEW RIJKSREGISTERNUMMER-FORMAAT (ALLEEN LEZEN) ──────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer previewRijksregFormaat en klik ▶ Uitvoeren.
+// Wijzigt NIETS in de spreadsheet — rapport verschijnt enkel in het uitvoeringslogboek.
+
+function previewRijksregFormaat() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log('Geen gegevens gevonden in tabblad Personeelsgegevens.');
+    return;
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var aantalOk = 0, aantalWijzigen = 0, aantalLetOp = 0;
+  var lijnen = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var naam    = (data[i][1]||'').toString().trim() || '(geen naam)';
+    var huidig  = (data[i][6]||'').toString().trim();
+
+    // Dezelfde logica als formatRijksreg in de webapp
+    var cijfers = huidig.replace(/\D/g, '').slice(0, 11);
+    var s = cijfers.slice(0, Math.min(2, cijfers.length));
+    if (cijfers.length > 2) s += '.' + cijfers.slice(2, Math.min(4, cijfers.length));
+    if (cijfers.length > 4) s += '.' + cijfers.slice(4, Math.min(6, cijfers.length));
+    if (cijfers.length > 6) s += '-' + cijfers.slice(6, Math.min(9, cijfers.length));
+    if (cijfers.length > 9) s += '.' + cijfers.slice(9, 11);
+    var geformatteerd = s;
+
+    var status;
+    if (cijfers.length !== 11) {
+      status = 'LET OP';
+      aantalLetOp++;
+    } else if (huidig === geformatteerd) {
+      status = 'OK';
+      aantalOk++;
+    } else {
+      status = 'ZOU WIJZIGEN';
+      aantalWijzigen++;
+    }
+
+    lijnen.push(
+      '[Rij ' + (i + 1) + '] ' + status +
+      ' | Naam: ' + naam +
+      ' | Huidig: "' + huidig + '"' +
+      (status !== 'OK' ? ' | Voorstel: "' + geformatteerd + '"' : '')
+    );
+  }
+
+  Logger.log('══════════════════════════════════════════════════════');
+  Logger.log('PREVIEW rijksregisternummer-formaat — NIETS gewijzigd');
+  Logger.log('══════════════════════════════════════════════════════');
+  lijnen.forEach(function(l) { Logger.log(l); });
+  Logger.log('──────────────────────────────────────────────────────');
+  Logger.log('Samenvatting:');
+  Logger.log('  OK           : ' + aantalOk);
+  Logger.log('  ZOU WIJZIGEN : ' + aantalWijzigen + '  (format wordt rechtgezet, 11 cijfers aanwezig)');
+  Logger.log('  LET OP       : ' + aantalLetOp   + '  (niet precies 11 cijfers — handmatig nakijken)');
+  Logger.log('  Totaal rijen : ' + (data.length - 1));
+  Logger.log('══════════════════════════════════════════════════════');
+}
+
+
+// ─── CORRECTIE RIJKSREGISTERNUMMER-FORMAAT ───────────────────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer corrigeerRijksregFormaat en klik ▶ Uitvoeren.
+// Wijzigt ALLEEN de "ZOU WIJZIGEN"-gevallen (11 cijfers aanwezig, format klopt niet).
+// "OK"-gevallen worden niet aangeraakt.
+// "LET OP"-gevallen (≠ 11 cijfers) worden NIET gewijzigd maar wel gemeld in het log.
+
+function corrigeerRijksregFormaat() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log('Geen gegevens gevonden in tabblad Personeelsgegevens.');
+    return;
+  }
+
+  var data = sheet.getDataRange().getValues();
+
+  // Verzamel eerst alle te wijzigen cellen — schrijf daarna pas weg.
+  var teWijzigen = [];  // {rij: 1-based, naam, oud, nieuw}
+  var aantalOk = 0, aantalLetOp = 0;
+  var letOpRijen = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var naam   = (data[i][1] || '').toString().trim() || '(geen naam)';
+    var huidig = (data[i][6] || '').toString().trim();
+
+    // Zelfde logica als previewRijksregFormaat / formatRijksreg in de webapp.
+    var cijfers = huidig.replace(/\D/g, '').slice(0, 11);
+    var s = cijfers.slice(0, Math.min(2, cijfers.length));
+    if (cijfers.length > 2) s += '.' + cijfers.slice(2, Math.min(4, cijfers.length));
+    if (cijfers.length > 4) s += '.' + cijfers.slice(4, Math.min(6, cijfers.length));
+    if (cijfers.length > 6) s += '-' + cijfers.slice(6, Math.min(9, cijfers.length));
+    if (cijfers.length > 9) s += '.' + cijfers.slice(9, 11);
+    var geformatteerd = s;
+
+    if (cijfers.length !== 11) {
+      // LET OP — overslaan, apart melden.
+      aantalLetOp++;
+      letOpRijen.push('[Rij ' + (i + 1) + '] LET OP | Naam: ' + naam + ' | Huidig: "' + huidig + '" | Cijfers: ' + cijfers.length);
+    } else if (huidig === geformatteerd) {
+      // Al correct — niet aanraken.
+      aantalOk++;
+    } else {
+      // ZOU WIJZIGEN — verzamelen.
+      teWijzigen.push({ rij: i + 1, naam: naam, oud: huidig, nieuw: geformatteerd });
+    }
+  }
+
+  // Schrijf de gecorrigeerde waarden weg, cel per cel zodat alleen kolom G wordt aangeraakt.
+  for (var j = 0; j < teWijzigen.length; j++) {
+    var w = teWijzigen[j];
+    var cel = sheet.getRange(w.rij, 7);   // kolom G = kolom 7
+    cel.setNumberFormat('@');             // tekstopmaak vóór setValue, anders herinterpretatie
+    cel.setValue(w.nieuw);
+  }
+
+  // ── Lograpport ──────────────────────────────────────────────────────────────
+  Logger.log('══════════════════════════════════════════════════════');
+  Logger.log('CORRECTIE rijksregisternummer-formaat — UITGEVOERD');
+  Logger.log('══════════════════════════════════════════════════════');
+
+  if (teWijzigen.length > 0) {
+    Logger.log('Gecorrigeerde rijen:');
+    for (var k = 0; k < teWijzigen.length; k++) {
+      var w2 = teWijzigen[k];
+      Logger.log('  [Rij ' + w2.rij + '] ' + w2.naam + ' | Oud: "' + w2.oud + '" → Nieuw: "' + w2.nieuw + '"');
+    }
+  } else {
+    Logger.log('Geen rijen gecorrigeerd.');
+  }
+
+  if (letOpRijen.length > 0) {
+    Logger.log('──────────────────────────────────────────────────────');
+    Logger.log('Overgeslagen (LET OP — handmatig nakijken):');
+    letOpRijen.forEach(function(l) { Logger.log('  ' + l); });
+  }
+
+  Logger.log('──────────────────────────────────────────────────────');
+  Logger.log('Samenvatting:');
+  Logger.log('  Gecorrigeerd : ' + teWijzigen.length);
+  Logger.log('  Al correct   : ' + aantalOk);
+  Logger.log('  LET OP       : ' + aantalLetOp + '  (niet precies 11 cijfers — niet gewijzigd)');
+  Logger.log('  Totaal rijen : ' + (data.length - 1));
+  Logger.log('══════════════════════════════════════════════════════');
+}
+
+
+// ─── EENMALIG HERSTEL PERSONEELSMELDINGEN ────────────────────────────────────
+// Uitvoeren vanuit de Apps Script-editor: selecteer herstelPersoneelsMeldingen en klik ▶ Uitvoeren.
+// Herstelt kolommen I, J en/of K die gewist werden door een test met een toekomstig jaar.
+// Kolom J (details van de wijziging) voor "gewijzigd"-rijen is permanent verloren en wordt niet hersteld.
+
+function herstelPersoneelsMeldingen() {
+  var ss    = getSS_();
+  var sheet = ss.getSheetByName(CONFIG.SHEETS.PERSONEELSGEGEVENS);
+  if (!sheet || sheet.getLastRow() < 2) { Logger.log('Geen gegevens gevonden.'); return; }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 11).getValues();
+
+  // Bouw een map van email → meest recente "Tot"-datum
+  var totPerEmail = {};
+  for (var i = 0; i < data.length; i++) {
+    var gel = (data[i][8]||'').toString().trim();
+    var em  = (data[i][7]||'').toString().trim().toLowerCase();
+    var m   = gel.match(/^Tot\s+(\d{2}\/\d{2}\/\d{4})/);
+    if (m && em) totPerEmail[em] = m[1];
+  }
+
+  var aantalNieuw = 0, aantalGewijzigd = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var rijnr      = i + 2;
+    var geldigheid = (data[i][8]||'').toString().trim();
+    var meldDetail = (data[i][9]||'').toString().trim();
+    var melding    = (data[i][10]||'').toString().trim();
+    var email      = (data[i][7]||'').toString().trim().toLowerCase();
+
+    // Sla "Tot"-rijen (archiefregels) over
+    if (geldigheid.match(/^Tot\s+/)) continue;
+
+    // Geval 1: "Nieuw personeelslid"-rij waarvan kolom K gewist is
+    if (melding === '' && meldDetail.indexOf('Nieuw personeelslid') === 0) {
+      sheet.getRange(rijnr, 11).setValue('nieuw');
+      aantalNieuw++;
+      Logger.log('Rij ' + rijnr + ': kolom K hersteld naar "nieuw"');
+      continue;
+    }
+
+    // Geval 2: gewijzigde rij waarvan kolom I, J én K gewist zijn
+    if (geldigheid === '' && meldDetail === '' && melding === '' && email && totPerEmail[email]) {
+      sheet.getRange(rijnr, 9).setValue('Vanaf ' + totPerEmail[email]);
+      sheet.getRange(rijnr, 11).setValue('gewijzigd');
+      aantalGewijzigd++;
+      Logger.log('Rij ' + rijnr + ': kolom I hersteld naar "Vanaf ' + totPerEmail[email] + '", kolom K naar "gewijzigd"');
+    }
+  }
+
+  Logger.log('Herstel voltooid: ' + aantalNieuw + ' nieuw-rijen, ' + aantalGewijzigd + ' gewijzigd-rijen bijgewerkt.');
+  try { verversKwartaaloverzichtAlsBestaat_(); } catch(_) {}
+}
