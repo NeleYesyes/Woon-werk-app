@@ -26,7 +26,7 @@ function getQuarterEndDate(quarter, year) {
 
 function getQuarterDeadline(quarter, year) {
   if (quarter === 2) {
-    return new Date(year, 6, 5, 23, 59, 59);  // Uiterste indieningstermijn Q2 = altijd 5 juli
+    return new Date(year, 6, 3, 23, 59, 59);  // Uiterste indieningstermijn Q2 = altijd 3 juli
   }
   var end = getQuarterEndDate(quarter, year);
   var dl = new Date(end);

@@ -62,36 +62,169 @@ function zetStatusInLookup_(lookup, sleutel, status) {
   if (!bestaand || statusRang_(status) >= statusRang_(bestaand)) lookup[sleutel] = status;
 }
 
-function bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, status) {
-  if (!isBetaalStatus_(status)) return false;
+function bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, status, callContext) {
+  if (!isBetaalStatus_(status)) {
+    logBetaalStatusDebug_('betaalstatus-write', {
+      callContext: callContext || 'onbekend',
+      actie: 'genegeerd',
+      reden: 'ongeldige-betaalstatus',
+      status: status || '',
+      jaar: jaar || '',
+      kw: kw || '',
+      sectie: sectie || '',
+      naam: officieleNaam || '',
+      email: email || ''
+    });
+    return false;
+  }
   var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
-  if (sleutels.length === 0) return false;
+  if (sleutels.length === 0) {
+    logBetaalStatusDebug_('betaalstatus-write', {
+      callContext: callContext || 'onbekend',
+      actie: 'genegeerd',
+      reden: 'geen-sleutel',
+      status: status,
+      jaar: jaar || '',
+      kw: kw || '',
+      sectie: sectie || '',
+      naam: officieleNaam || '',
+      email: email || ''
+    });
+    return false;
+  }
   var props = PropertiesService.getScriptProperties();
-  sleutels.forEach(function(sleutel) { props.setProperty(sleutel, status); });
+  var primaryKey = sleutels[0] || '';
+  var aliasKeys = sleutels.slice(1);
+  var hoogsteStatus = status;
+  sleutels.forEach(function(sleutel) {
+    var bestaandeWaarde = props.getProperty(sleutel);
+    if (isBetaalStatus_(bestaandeWaarde) && statusRang_(bestaandeWaarde) > statusRang_(hoogsteStatus)) {
+      hoogsteStatus = bestaandeWaarde;
+    }
+  });
+
+  sleutels.forEach(function(sleutel, idx) {
+    var oudeWaarde = props.getProperty(sleutel);
+    var bestond = oudeWaarde !== null && oudeWaarde !== undefined;
+    var oudeRang = isBetaalStatus_(oudeWaarde) ? statusRang_(oudeWaarde) : 0;
+    var nieuweRang = statusRang_(status);
+    var hoogsteRang = statusRang_(hoogsteStatus);
+
+    if (oudeRang > nieuweRang) {
+      logBetaalStatusDebug_('betaalstatus-write', {
+        callContext: callContext || 'onbekend',
+        actie: 'blocked-downgrade',
+        keyType: idx === 0 ? 'primary' : 'alias',
+        key: sleutel,
+        primaryKey: primaryKey,
+        aliasKeys: aliasKeys.join(' ; '),
+        bestond: bestond,
+        oudePropertyWaarde: oudeWaarde || '',
+        gevraagdeNieuweWaarde: status,
+        behoudenPropertyWaarde: oudeWaarde,
+        effectieveWaardeVoorAliasSync: hoogsteStatus,
+        status: status,
+        nietDefault: status !== STATUS_INGEDIEND,
+        ingediendPolicy: status === STATUS_INGEDIEND ? 'Ingediend geblokkeerd: bestaande niet-default blijft behouden' : 'lagere status geblokkeerd',
+        jaar: jaar || '',
+        kw: kw || '',
+        sectie: sectie || '',
+        naam: officieleNaam || '',
+        email: email || ''
+      });
+      return;
+    }
+
+    if (!bestond || oudeRang < hoogsteRang) {
+      props.setProperty(sleutel, hoogsteStatus);
+      logBetaalStatusDebug_('betaalstatus-write', {
+        callContext: callContext || 'onbekend',
+        actie: 'setProperty',
+        keyType: idx === 0 ? 'primary' : 'alias',
+        key: sleutel,
+        primaryKey: primaryKey,
+        aliasKeys: aliasKeys.join(' ; '),
+        bestond: bestond,
+        oudePropertyWaarde: oudeWaarde || '',
+        nieuwePropertyWaarde: hoogsteStatus,
+        gevraagdeNieuweWaarde: status,
+        status: hoogsteStatus,
+        nietDefault: hoogsteStatus !== STATUS_INGEDIEND,
+        ingediendPolicy: status === STATUS_INGEDIEND && hoogsteStatus !== STATUS_INGEDIEND ? 'Ingediend niet geschreven: hogere status wint' : (hoogsteStatus === STATUS_INGEDIEND ? 'Ingediend geschreven zonder hogere bestaande status' : 'niet-default bewaard'),
+        jaar: jaar || '',
+        kw: kw || '',
+        sectie: sectie || '',
+        naam: officieleNaam || '',
+        email: email || ''
+      });
+      return;
+    }
+
+    logBetaalStatusDebug_('betaalstatus-write', {
+      callContext: callContext || 'onbekend',
+      actie: 'noop-retained',
+      keyType: idx === 0 ? 'primary' : 'alias',
+      key: sleutel,
+      primaryKey: primaryKey,
+      aliasKeys: aliasKeys.join(' ; '),
+      bestond: bestond,
+      oudePropertyWaarde: oudeWaarde || '',
+      nieuwePropertyWaarde: oudeWaarde || '',
+      gevraagdeNieuweWaarde: status,
+      status: oudeWaarde || '',
+      nietDefault: oudeWaarde !== STATUS_INGEDIEND,
+      ingediendPolicy: status === STATUS_INGEDIEND && oudeWaarde !== STATUS_INGEDIEND ? 'Ingediend niet nodig: bestaande hogere status blijft behouden' : 'waarde bleef ongewijzigd',
+      jaar: jaar || '',
+      kw: kw || '',
+      sectie: sectie || '',
+      naam: officieleNaam || '',
+      email: email || ''
+    });
+  });
   return true;
 }
 
-function leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam) {
+function leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam, detail) {
   var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  if (detail) detail.propertyCandidateKeys = sleutels.slice();
   if (sleutels.length === 0) return '';
   var props = PropertiesService.getScriptProperties();
+  var besteStatus = '';
+  var besteIndex = -1;
   for (var i = 0; i < sleutels.length; i++) {
     var status = props.getProperty(sleutels[i]);
     if (isBetaalStatus_(status)) {
-      // Migreer aliasen meteen mee: vindt bv. naam-key de status, dan krijgt de email-key
-      // dezelfde waarde zodat volgende rebuilds niet meer afhankelijk zijn van de fallback.
-      sleutels.forEach(function(sleutel) { props.setProperty(sleutel, status); });
-      return status;
+      if (!besteStatus || statusRang_(status) > statusRang_(besteStatus)) {
+        besteStatus = status;
+        besteIndex = i;
+      }
     }
   }
-  return '';
+  if (!besteStatus) return '';
+  if (detail) {
+    detail.propertyMatchedKey = sleutels[besteIndex];
+    detail.propertyMatchedKeyType = besteIndex === 0 ? 'primary' : 'alias';
+    detail.propertyMatchedStatus = besteStatus;
+  }
+  // Migreer aliasen meteen mee: de hoogste bestaande propertywaarde wint, zodat
+  // Ingediend nooit een bestaande Controle uitgevoerd/Betaling verwerkt terugzet.
+  bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, besteStatus, 'alias-property-migratie');
+  return besteStatus;
 }
 
-function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
+function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein, detail) {
   if (!statusLookup) return '';
   var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
+  if (detail) detail.lookupCandidateKeys = sleutels.slice();
   for (var si = 0; si < sleutels.length; si++) {
-    if (isBetaalStatus_(statusLookup[sleutels[si]])) return statusLookup[sleutels[si]];
+    if (isBetaalStatus_(statusLookup[sleutels[si]])) {
+      if (detail) {
+        detail.lookupMatchedKey = sleutels[si];
+        detail.lookupMatchedKeyType = si === 0 ? 'current-primary' : 'current-alias';
+        detail.lookupMatchedStatus = statusLookup[sleutels[si]];
+      }
+      return statusLookup[sleutels[si]];
+    }
   }
 
   // Backwards compatibiliteit met oudere, pipe-gebaseerde sleutels uit vorige rebuilds.
@@ -100,8 +233,16 @@ function leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, offic
   if (email) legacy.push(prefix + email.toString().trim().toLowerCase());
   if (officieleNaam) legacy.push(prefix + officieleNaam.toString().trim());
   if (domein) legacy.push(prefix + domein.toString().trim());
+  if (detail) detail.lookupCandidateKeys = (detail.lookupCandidateKeys || []).concat(legacy);
   for (var i = 0; i < legacy.length; i++) {
-    if (isBetaalStatus_(statusLookup[legacy[i]])) return statusLookup[legacy[i]];
+    if (isBetaalStatus_(statusLookup[legacy[i]])) {
+      if (detail) {
+        detail.lookupMatchedKey = legacy[i];
+        detail.lookupMatchedKeyType = 'legacy-oudeSheet';
+        detail.lookupMatchedStatus = statusLookup[legacy[i]];
+      }
+      return statusLookup[legacy[i]];
+    }
   }
   return '';
 }
@@ -110,19 +251,26 @@ function isBetaalStatusDebugAan_() {
   return PropertiesService.getScriptProperties().getProperty('debugBetaalstatus') === 'true';
 }
 
+function logBetaalStatusDebug_(prefix, info) {
+  if (!isBetaalStatusDebugAan_()) return;
+  var onderdelen = [prefix];
+  Object.keys(info || {}).forEach(function(key) {
+    var waarde = info[key];
+    if (waarde instanceof Date) {
+      waarde = Utilities.formatDate(waarde, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    } else if (Array.isArray(waarde)) {
+      waarde = waarde.join(' ; ');
+    } else if (waarde === null || waarde === undefined) {
+      waarde = '';
+    }
+    onderdelen.push(key + '=' + waarde);
+  });
+  Logger.log(onderdelen.join(' | '));
+}
+
 function logBetaalStatusBeslissing_(info) {
   if (!isBetaalStatusDebugAan_()) return;
-  Logger.log(
-    'betaalstatus | sleutel=' + info.sleutel +
-    ' | naam=' + info.naam +
-    ' | email=' + info.email +
-    ' | sectie=' + info.sectie +
-    ' | jaar=' + info.jaar +
-    ' | kw=' + info.kw +
-    ' | property=' + (info.propertyStatus || '') +
-    ' | oudeSheet=' + (info.lookupStatus || '') +
-    ' | geschreven=' + info.geschrevenStatus
-  );
+  logBetaalStatusDebug_('betaalstatus-rebuild', info);
 }
 
 function stelBetaalStatusDebugLoggingIn(aan) {
@@ -140,20 +288,30 @@ function zetBetaalStatusDebugLoggingUit() {
 }
 
 function bepaalBetaalStatusBeslissing_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein) {
-  var propertyStatus = leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam);
-  var lookupStatus   = leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein);
+  var detail = {};
+  var propertyStatus = leesBetaalStatusUitProperties_(jaar, kw, sectie, email, officieleNaam, detail);
+  var lookupStatus   = leesBetaalStatusUitLookup_(statusLookup, jaar, kw, sectie, email, officieleNaam, domein, detail);
   var geschreven     = propertyStatus || lookupStatus || STATUS_INGEDIEND;
+  var gepromoveerd   = false;
 
   // Een niet-default status die alleen nog in het oude overzicht staat, wordt meteen
   // gepromoveerd naar PropertiesService. Zo kan die fallback niet na enkele rebuilds verdampen.
   if (!propertyStatus && lookupStatus && lookupStatus !== STATUS_INGEDIEND) {
-    bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, lookupStatus);
+    bewaarBetaalStatus_(jaar, kw, sectie, email, officieleNaam, lookupStatus, 'oudeSheet-promotie');
     propertyStatus = lookupStatus;
+    gepromoveerd = true;
   }
 
   var sleutels = maakBetaalStatusSleutels_(jaar, kw, sectie, email, officieleNaam);
   logBetaalStatusBeslissing_({
     sleutel: sleutels.join(' ; '),
+    kandidaatKeys: (detail.propertyCandidateKeys || []).concat(detail.lookupCandidateKeys || []).join(' ; '),
+    propertyMatchedKey: detail.propertyMatchedKey || '',
+    propertyMatchedKeyType: detail.propertyMatchedKeyType || '',
+    lookupMatchedKey: detail.lookupMatchedKey || '',
+    lookupMatchedKeyType: detail.lookupMatchedKeyType || '',
+    bron: propertyStatus ? (detail.propertyMatchedKeyType === 'alias' ? 'alias-property' : 'primary-property') : (lookupStatus ? 'oudeSheet' : 'default-Ingediend'),
+    oudeSheetGepromoveerd: gepromoveerd,
     naam: officieleNaam || '',
     email: email || '',
     sectie: sectie,
@@ -237,15 +395,91 @@ function getQuarterlyOverview(quarter, year) {
   });
 }
 
+function verwijderKwartaaloverzichtTempAlsBestaat_(context) {
+  try {
+    var ss = getSS_();
+    var temp = ss.getSheetByName('Kwartaaloverzicht_TEMP');
+    if (!temp) return false;
+    ss.deleteSheet(temp);
+    logBetaalStatusDebug_('kw-refresh', {
+      context: context || '',
+      fase: 'cleanup-temp',
+      tempVerwijderd: true
+    });
+    return true;
+  } catch(e) {
+    logBetaalStatusDebug_('kw-refresh', {
+      context: context || '',
+      fase: 'cleanup-temp',
+      tempVerwijderd: false,
+      fout: e.toString(),
+      stack: e.stack || ''
+    });
+    return false;
+  }
+}
+
 function voerMetKwartaaloverzichtLock_(context, actie) {
+  var start = new Date();
+  var startInfo = {
+    context: context,
+    fase: 'start',
+    starttijd: start
+  };
+  try {
+    var ssStart = getSS_();
+    var actiefStart = null;
+    try { actiefStart = SpreadsheetApp.getActiveSheet(); } catch(_) {}
+    startInfo.actiefSheet = actiefStart ? actiefStart.getName() : '';
+    startInfo.tempBestondBijStart = !!ssStart.getSheetByName('Kwartaaloverzicht_TEMP');
+    startInfo.oudBestondBijStart = !!ssStart.getSheetByName('Kwartaaloverzicht_OUD');
+  } catch(_) {}
+  logBetaalStatusDebug_('kw-refresh', startInfo);
+
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
+    logBetaalStatusDebug_('kw-refresh', {
+      context: context,
+      fase: 'lock',
+      lockVerkregen: false,
+      overgeslagen: true,
+      starttijd: start,
+      einde: new Date()
+    });
     Logger.log('⚠️ Kwartaaloverzicht wordt al vernieuwd; ' + context + ' overgeslagen.');
     return null;
   }
+  logBetaalStatusDebug_('kw-refresh', {
+    context: context,
+    fase: 'lock',
+    lockVerkregen: true,
+    overgeslagen: false,
+    starttijd: start
+  });
+  verwijderKwartaaloverzichtTempAlsBestaat_(context + ':start');
+  var fout = null;
   try {
     return actie();
+  } catch(e) {
+    fout = e;
+    logBetaalStatusDebug_('kw-refresh', {
+      context: context,
+      fase: 'fout',
+      fout: e.toString(),
+      stack: e.stack || ''
+    });
+    throw e;
   } finally {
+    verwijderKwartaaloverzichtTempAlsBestaat_(context + ':finally');
+    logBetaalStatusDebug_('kw-refresh', {
+      context: context,
+      fase: 'einde',
+      lockVerkregen: true,
+      fout: fout ? fout.toString() : '',
+      stack: fout && fout.stack ? fout.stack : '',
+      starttijd: start,
+      einde: new Date()
+    });
     lock.releaseLock();
   }
 }
@@ -562,7 +796,15 @@ function verversKwartaaloverzichtAlsBestaat_(terugNaamParam) {
       // waardoor .after(5000) toch pas na ±1 minuut vuurde. Installable triggers draaien
       // 6 minuten, dus de rebuild past hier gewoon in.
       return maakKwartaaloverzichtZonderLock_(terugNaamParam);
-    } catch(e) { Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e); }
+    } catch(e) {
+      Logger.log('⚠️ Kwartaaloverzicht vernieuwen mislukt: ' + e + (e.stack ? '\n' + e.stack : ''));
+      logBetaalStatusDebug_('kw-refresh', {
+        context: 'verversKwartaaloverzichtAlsBestaat_',
+        fase: 'catch',
+        fout: e.toString(),
+        stack: e.stack || ''
+      });
+    }
     return null;
   });
 }
@@ -570,7 +812,15 @@ function verversKwartaaloverzichtAlsBestaat_(terugNaamParam) {
 function verversKwartaaloverzichtGetriggerd() {
   return voerMetKwartaaloverzichtLock_('verversKwartaaloverzichtGetriggerd', function() {
     try { return maakKwartaaloverzichtZonderLock_(); }
-    catch(e) { Logger.log('⚠️ Getriggerde refresh mislukt: ' + e); }
+    catch(e) {
+      Logger.log('⚠️ Getriggerde refresh mislukt: ' + e + (e.stack ? '\n' + e.stack : ''));
+      logBetaalStatusDebug_('kw-refresh', {
+        context: 'verversKwartaaloverzichtGetriggerd',
+        fase: 'catch',
+        fout: e.toString(),
+        stack: e.stack || ''
+      });
+    }
     return null;
   });
 }
@@ -582,7 +832,7 @@ function controleerKwartaaloverzicht_() {
       Logger.log('⚠️ Kwartaaloverzicht ontbreekt — automatische herbouw gestart.');
       maakKwartaaloverzicht();
     }
-  } catch(e) { Logger.log('⚠️ Controle Kwartaaloverzicht mislukt: ' + e); }
+  } catch(e) { Logger.log('⚠️ Controle Kwartaaloverzicht mislukt: ' + e + (e.stack ? '\n' + e.stack : '')); }
 }
 
 function stelKwartaaloverzichtBeveiligingIn() {

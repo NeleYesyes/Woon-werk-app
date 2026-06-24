@@ -49,7 +49,7 @@ function maakAanpakTabblad() {
   ];
 
   var goedkeurItemsNicoInse = [
-    'Opgelet: Keur eerst handmatig af als dat nodig is (N + enter = afgekeurd: kleur rood).',
+    'Opgelet: Keur eerst handmatig af als dat nodig is (N + enter = afgekeurd: kleur rood of met het pijltje).',
     'Nico: Klik de checkbox bovenaan de Goedgekeurd?-kolom om in bulk goed te keuren (kleur groen), met uitzondering van het personeel van Beeld.',
     'Inse: Klik de checkbox bovenaan de Goedgekeurd?-kolom om in bulk goed te keuren (kleur groen), enkel voor jezelf én personeel Beeld.',
     'Onderaan verschijnt de melding: "... rijen goedgekeurd voor Kx 20XX".',
@@ -58,7 +58,7 @@ function maakAanpakTabblad() {
   var stopItems = [
     'Voor 1ste kwartaal: vanaf 11 januari',
     'Voor 2de kwartaal: vanaf 11 april',
-    'Voor 3de kwartaal: vanaf 6 juli (omwille van verlof)',
+    'Voor 3de kwartaal: vanaf 3 juli (omwille van verlof)',
     'Voor 4de kwartaal: vanaf 11 oktober',
   ];
 
@@ -67,15 +67,16 @@ function maakAanpakTabblad() {
       naam: 'Stad Ieper / Cheyana',
       aanhef: 'Beste Cheyana (Stad Ieper), dit ter info:',
       items: [
+       { tekst: 'Zoals afgesproken: Er staat een stop op het invullen van de webapp door de leerkrachten:', sub: stopItems },
         { tekst: 'Je krijgt bericht van Myriam Demeester als zij klaar is met controle beleid en personeel Woord, Muziek en Kunstkuur. Je krijgt bericht van Nele Moerman als zij klaar is met controle personeel Beeld.', boldParts: ['Myriam Demeester', 'Nele Moerman'] },
         { tekst: 'Klik het juiste kwartaal aan om in te werken.' },
         { tekst: 'Voer het juiste tarief van fietsvergoeding en dienstverplaatsing per kwartaal manueel aan in kolom H. Als Nico er staat, noteer je daar het hogere tarief fietsvergoeding dat afwijkt van het standaardtarief.' },
-        { tekst: 'Standaard staat in kolom K "Ingediend". De status van de verwerking verander je hier door een klik op het pijltje.' },
+        { tekst: 'Standaard staat in kolom K "Ingediend". De status van de verwerking verander je door een klik op het pijltje.' },
         { tekst: 'Bewijsjes kun je in de andere tabbladen hooveren/klikken.' },
         { tekst: 'Is er een nieuw personeelslid? Dan krijg je daar via het Kwartaaloverzicht melding van.' },
         { tekst: 'Is er een wijziging van de gegevens van een bestaand personeelslid? Dan krijg je daar via het Kwartaaloverzicht melding van. In het tabblad Personeelsgegevens zie je welke wijziging er werd doorgevoerd in kolommen I en J. Best "Wijziging doorgevoerd" klikken. Zoniet blijft deze melding zich elk kwartaal herhalen.' },
         { tekst: 'Helemaal klaar met dit kwartaal? Klik in kolom K op de grote checkbox naast de titelbalk van het kwartaal. Hiermee verberg je alle ingevoerde rijen in de andere tabbladen. Dit zorgt voor overzicht voor iedereen. Ter info: wil je ze terughalen? Dan klik je gewoon terug op de grote checkbox.' },
-        { tekst: 'Per jaar wordt het tabblad Personeelsgegevens bijgestuurd en worden de oudere rijen verborgen.' },
+        { tekst: 'Per jaar wordt het tabblad Personeelsgegevens automatisch bijgestuurd en worden de oudere rijen verborgen.' },
         { tekst: 'Als je extra tabblad Kwartaaloverzicht_TEMP ziet verschijnen (en terug verdwijnen), dan is dat omdat er een bijsturing gebeurd is én het tabblad Kwartaaloverzicht op de achtergrond aan het "refreshen" is.' },
       ],
       sluiting: 'Mvg - team de Academie'
@@ -87,7 +88,7 @@ function maakAanpakTabblad() {
         { tekst: "Jullie kunnen tussendoor goed/afkeuren, los van Myriam's of Nele's controles op juistheid." },
         { tekst: 'Je opent elk van de tabbladen:', sub: goedkeurItemsNicoInse },
         { tekst: 'Er staat een stop op het invullen van de webapp door de leerkrachten:', sub: stopItems },
-        { tekst: 'Na definitieve controle: Graag Myriam / Nele (Beeld) verwittigen, zodat zij weet dat ze definitief kan bevestigen aan Cheyana dat zij met de verwerking kan beginnen.' },
+        { tekst: 'Na definitieve controle: Graag Myriam / Nele (Beeld) verwittigen, zodat zij weten dat ze definitief kunnen bevestigen aan Cheyana dat zij met de verwerking kan beginnen.' },
         { tekst: 'Uitbetalingen voor het vorige kwartaal worden voorzien eind de eerste maand na afsluiten van het kwartaal (m.u.v. juli = eerder omwille van verlof).' },
         { tekst: 'Als je extra tabblad Kwartaaloverzicht_TEMP ziet verschijnen (en terug verdwijnen), dan is dat omdat er een bijsturing gebeurd is én het tabblad Kwartaaloverzicht op de achtergrond aan het "refreshen" is.' },
       ],
@@ -98,16 +99,17 @@ function maakAanpakTabblad() {
       aanhef: 'Beste Myriam & Nele,',
       items: [
         { tekst: 'Jullie kunnen tussendoor controles uitvoeren, ongeacht goed/afkeuring van Nico/Inse. Per rij hebben jullie hiervoor een checkbox om aan te vinken, zodat jullie op die manier "bijhouden" wat jullie al controleerden.' },
-        { tekst: 'Nele: de controleboxen voor jouw rijen zijn voor het gemak in groene kleur gezet.' },
-        { tekst: 'Opgelet: bij manueel aanpassen van het bedrag wordt alles prima bijgestuurd. Manueel invoeren van extra rijen in een tabblad "Fietsvergoeding, Woon-Werk (trein-De Lijn), Dienstvergoeding" vereist invullen van minstens de kolommen C, D, E, F en dan de Km/Bedrag met exacte naam ! (om alles juist te laten overgaan naar het Kwartaaloverzicht). Niet schrikken: na invullen van kolommen C, D en E springt de rij automatisch in de alfabetische volgorde. 1 fout in de naam of spatie te veel of te weinig geeft problemen.',
+        { tekst: 'Nele: de controleboxen voor jouw rijen (Beeld) zijn voor het gemak in groene kleur gezet.' },
+        { tekst: 'Opgelet: bij manueel aanpassen van het bedrag wordt alles prima bijgestuurd. Manueel invoeren van extra rijen in een tabblad "Fietsvergoeding, Woon-Werk (trein-De Lijn), Dienstvergoeding" vereist invullen van minstens de kolommen Naam t.e.m. Bestand. Opgelet voor de exacte schrijfwijze van de naam ! (om alles juist te laten overgaan naar het Kwartaaloverzicht). Niet schrikken: de rij springt automatisch in de alfabetische volgorde.',
           hoogte: 90,
           richParts: [
             { tekst: 'Opgelet', bold: true, color: '#dc2626' },
-            { tekst: 'exacte naam !', bold: true, color: null },
+            { tekst: 'Niet schrikken', bold: true, color: '#dc2626' },
+            { tekst: 'exacte schrijfwijze van de naam !', bold: true, color: null },
           ]
         },
         { tekst: 'Er staat een stop op het invullen van de webapp door de leerkrachten:', sub: stopItems },
-        { tekst: 'Na definitieve controle: Graag Cheyana.Schoer@ieper.be verwittigen, zodat zij vanaf 15 januari, 15 april, 10 juli en 15 oktober aan de slag kan. Je zal normaal via Nico/Inse bericht gekregen hebben dat ze klaar zijn met goedkeuring en/of je zal het zelf zien in de kolom links van die van jullie.' },
+        { tekst: 'Na definitieve controle: Graag Cheyana.Schoer@ieper.be verwittigen, zodat zij vanaf 15 januari, 15 april, 5 juli en 15 oktober aan de slag kan. Je zal normaal via Nico/Inse bericht gekregen hebben dat ze klaar zijn met goedkeuring en/of je zal het zelf zien in de kolom links van die van jullie.' },
         { tekst: 'Uitbetalingen voor het vorige kwartaal worden voorzien eind de eerste maand na afsluiten van het kwartaal (m.u.v. juli = eerder omwille van verlof).' },
         { tekst: 'Als je extra tabblad Kwartaaloverzicht_TEMP ziet verschijnen (en terug verdwijnen), dan is dat omdat er een bijsturing gebeurd is én het tabblad Kwartaaloverzicht op de achtergrond aan het "refreshen" is.' },
       ],

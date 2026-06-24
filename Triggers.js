@@ -4,7 +4,36 @@ function onEdit(e) {
   // Lichte simple-trigger fallback: bewaar alleen betaalstatussen.
   // De volledige logica blijft in de installable trigger onEditJaar(e), zodat acties
   // met autorisatie (rebuilds, rijen tonen/verbergen, ScriptApp) niet dubbel lopen.
-  try { bewaarBetaalStatusEditUitEvent_(e); } catch(err) { Logger.log('onEdit fallback fout: ' + err); }
+
+  if(!e) {
+    Logger.log("No event");
+    return false;
+  }
+
+  if(!e.source){
+    return false;
+  }
+  var oSs = e.source;
+
+  if(!oSs) {
+    Logger.log("No spreadsheet found.");
+    return false;
+  }
+
+  var oSheet = oSs.getSheetByName("Parameters");
+  var bAllowEdit = oSheet.getRange("B1").getValue();
+
+  if(bAllowEdit) {
+    try { bewaarBetaalStatusEditUitEvent_(e, 'simple-onEdit'); } catch(err) { Logger.log('onEdit fallback fout: ' + err); }
+    oSheet.getRange("B2").setValue(new Date());
+  }
+    else {
+      Logger.log("Can't edit");
+  }
+}
+
+function logBetaalStatusEdit_(info) {
+  logBetaalStatusDebug_('betaalstatus-edit', info || {});
 }
 
 function bepaalKwartaalStatusContextVoorRij_(sheet, rijnr) {
@@ -23,43 +52,182 @@ function bepaalKwartaalStatusContextVoorRij_(sheet, rijnr) {
     if (label.indexOf('Dienstverplaatsing') > -1) sectie = 'dienst';
   }
 
-  if (!jaar || !kw || !sectie) {
-    Logger.log('⚠️ bepaalKwartaalStatusContextVoorRij_ (rij ' + rijnr + '): context onvolledig — kw=' + kw + ', sectie="' + sectie + '", jaar=' + jaar + '. Status zal NIET worden opgeslagen in ScriptProperties.');
-    return null;
-  }
+  if (!jaar || !kw || !sectie) return null;
   return { jaar: jaar, kw: kw, sectie: sectie };
 }
 
-function bewaarBetaalStatusEditUitEvent_(e) {
-  if (!e || !e.range) return false;
+function bewaarBetaalStatusEditUitEvent_(e, caller) {
+  caller = caller || 'onbekend';
+  if (!e || !e.range) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: false,
+      rijType: 'genegeerd',
+      reden: 'geen-event-of-range'
+    });
+    return false;
+  }
   var sheet = e.range.getSheet();
-  if (!sheet || sheet.getName() !== 'Kwartaaloverzicht') return false;
-  if (e.range.getColumn() !== 11 || e.range.getRow() <= 3) return false;
-  if (e.range.getNumRows && (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1)) return false;
+  var sheetNaam = sheet ? sheet.getName() : '';
+  var rij = e.range.getRow();
+  var kolom = e.range.getColumn();
+  var nieuweWaardeRaw = e.range.getValue();
+  var nieuweWaarde = (nieuweWaardeRaw || '').toString().trim();
+  var oudeWaarde = (e.oldValue !== undefined) ? e.oldValue : '';
 
-  var status = (e.range.getValue() || '').toString().trim();
-  if (!isBetaalStatus_(status)) return false;
+  if (!sheet || sheetNaam !== 'Kwartaaloverzicht') {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij || '',
+      kolom: kolom || '',
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'genegeerd',
+      reden: 'niet-Kwartaaloverzicht'
+    });
+    return false;
+  }
+  if (kolom !== 11 || rij <= 3) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'genegeerd',
+      reden: 'niet-kolom-K-of-te-hoog'
+    });
+    return false;
+  }
+  if (e.range.getNumRows && (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1)) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'genegeerd',
+      reden: 'meerdere-cellen'
+    });
+    return false;
+  }
 
-  var rijnr = e.range.getRow();
+  var status = nieuweWaarde;
+  if (!isBetaalStatus_(status)) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'genegeerd',
+      reden: 'geen-betaalstatus'
+    });
+    return false;
+  }
+
+  var rijnr = rij;
   var colIWaarde = sheet.getRange(rijnr, 9).getValue();
   var colJWaarde = sheet.getRange(rijnr, 10).getValue();
 
   // Headerrijen hebben in I/J technische rijnummers; meldingsrijen hebben in J een kwartaalnummer.
-  if (typeof colIWaarde === 'number' && colIWaarde > 0 && typeof colJWaarde === 'number' && colJWaarde > 0) return false;
-  if ((colIWaarde || '').toString().indexOf('@') > -1 && parseInt(colJWaarde) > 0) return false;
+  if (typeof colIWaarde === 'number' && colIWaarde > 0 && typeof colJWaarde === 'number' && colJWaarde > 0) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'kwartaalheader',
+      reden: 'header-heeft-technische-IJ-waarden'
+    });
+    return false;
+  }
+  if ((colIWaarde || '').toString().indexOf('@') > -1 && parseInt(colJWaarde) > 0) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'meldingrij',
+      reden: 'meldingrij-heeft-email-en-kwartaal-in-J',
+      email: (colIWaarde || '').toString().trim(),
+      kwartaal: parseInt(colJWaarde) || ''
+    });
+    return false;
+  }
 
   var context = bepaalKwartaalStatusContextVoorRij_(sheet, rijnr);
   if (!context) {
-    Logger.log('⚠️ bewaarBetaalStatusEditUitEvent_ (rij ' + rijnr + '): geen context → status "' + status + '" NIET opgeslagen in ScriptProperties.');
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'betaalstatusrij',
+      reden: 'geen-jaar-kwartaal-of-sectie-context'
+    });
     return false;
   }
 
   var email = (colIWaarde || '').toString().trim().toLowerCase();
   if (email.indexOf('@') === -1) email = '';
   var officieleNaam = (sheet.getRange(rijnr, 2).getValue() || '').toString().trim();
-  if (!email && !officieleNaam) return false;
+  var sleutels = maakBetaalStatusSleutels_(context.jaar, context.kw, context.sectie, email, officieleNaam);
+  if (!email && !officieleNaam) {
+    logBetaalStatusEdit_({
+      caller: caller,
+      eventBereikt: true,
+      sheetnaam: sheetNaam,
+      rij: rij,
+      kolom: kolom,
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'betaalstatusrij',
+      reden: 'geen-email-of-naam',
+      jaar: context.jaar,
+      kwartaal: context.kw,
+      sectie: context.sectie
+    });
+    return false;
+  }
 
-  var opgeslagen = bewaarBetaalStatus_(context.jaar, context.kw, context.sectie, email, officieleNaam, status);
+  logBetaalStatusEdit_({
+    caller: caller,
+    eventBereikt: true,
+    sheetnaam: sheetNaam,
+    rij: rij,
+    kolom: kolom,
+    oudeWaarde: oudeWaarde,
+    nieuweWaarde: nieuweWaarde,
+    rijType: 'betaalstatusrij',
+    reden: 'wordt-verwerkt',
+    jaar: context.jaar,
+    kwartaal: context.kw,
+    sectie: context.sectie,
+    naam: officieleNaam,
+    email: email,
+    primaireSleutel: sleutels[0] || '',
+    aliasSleutels: sleutels.slice(1).join(' ; ')
+  });
+
+  var opgeslagen = bewaarBetaalStatus_(context.jaar, context.kw, context.sectie, email, officieleNaam, status, caller + ':edit');
   if (opgeslagen) e.range.setBackground(statusKleur_(status)).setFontColor('#334155');
   return opgeslagen;
 }
@@ -69,11 +237,23 @@ function verwerkKwartaaloverzichtKolomKEdit_(e) {
   if (sheet.getName() !== 'Kwartaaloverzicht' || e.range.getColumn() !== 11 || e.range.getRow() <= 3) return false;
 
   var nieuweWaarde = (e.range.getValue()||'').toString().trim();
+  var oudeWaarde = (e.oldValue !== undefined) ? e.oldValue : '';
   var colIWaarde   = sheet.getRange(e.range.getRow(), 9).getValue();
   var colJWaarde   = sheet.getRange(e.range.getRow(), 10).getValue();
 
   // Header-rij: kolom I en J bevatten technische rijnummers, kolom K is de Stad Ieper-checkbox.
   if (typeof colIWaarde === 'number' && colIWaarde > 0 && typeof colJWaarde === 'number' && colJWaarde > 0) {
+    logBetaalStatusEdit_({
+      caller: 'onEditJaar',
+      eventBereikt: true,
+      sheetnaam: sheet.getName(),
+      rij: e.range.getRow(),
+      kolom: e.range.getColumn(),
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'kwartaalheader',
+      reden: 'Stad-Ieper-checkbox-verwerkt'
+    });
     verwerkKwartaalSlot_(sheet, e.range.getRow(), e.range.getValue());
     return true;
   }
@@ -84,6 +264,20 @@ function verwerkKwartaaloverzichtKolomKEdit_(e) {
   var meldKw     = parseInt(colJWaarde) || 0;
   if (notifEmail.indexOf('@') > -1 && meldKw > 0) {
     var meldJaar = parseInt(sheet.getRange('B2').getValue()) || getEffectiveDate().getFullYear();
+    logBetaalStatusEdit_({
+      caller: 'onEditJaar',
+      eventBereikt: true,
+      sheetnaam: sheet.getName(),
+      rij: e.range.getRow(),
+      kolom: e.range.getColumn(),
+      oudeWaarde: oudeWaarde,
+      nieuweWaarde: nieuweWaarde,
+      rijType: 'meldingrij',
+      reden: 'meldingstatus-verwerkt',
+      jaar: meldJaar,
+      kwartaal: meldKw,
+      email: notifEmail
+    });
     if (nieuweWaarde === 'Opgelet: wijziging') {
       e.range.setBackground('#dc2626').setFontColor('#ffffff');
     }
@@ -92,11 +286,19 @@ function verwerkKwartaaloverzichtKolomKEdit_(e) {
   }
 
   // Gewone betaalstatusrij: meteen persistent opslaan, zodat latere rebuilds de keuze behouden.
-  if (bewaarBetaalStatusEditUitEvent_(e)) return true;
-  if (isBetaalStatus_(nieuweWaarde)) {
-    Logger.log('⚠️ verwerkKolomKEdit (rij ' + e.range.getRow() + '): status "' + nieuweWaarde + '" NIET opgeslagen in ScriptProperties — zie bovenstaande logs voor oorzaak.');
-    e.range.setBackground(statusKleur_(nieuweWaarde)).setFontColor('#334155');
-  }
+  if (bewaarBetaalStatusEditUitEvent_(e, 'onEditJaar')) return true;
+  logBetaalStatusEdit_({
+    caller: 'onEditJaar',
+    eventBereikt: true,
+    sheetnaam: sheet.getName(),
+    rij: e.range.getRow(),
+    kolom: e.range.getColumn(),
+    oudeWaarde: oudeWaarde,
+    nieuweWaarde: nieuweWaarde,
+    rijType: 'genegeerd',
+    reden: 'kolom-K-maar-geen-verwerkbare-betaalstatus'
+  });
+  if (isBetaalStatus_(nieuweWaarde)) e.range.setBackground(statusKleur_(nieuweWaarde)).setFontColor('#334155');
   return true;
 }
 
@@ -170,14 +372,77 @@ function toonRitRijenVoorKwartaal_(ss, jaar, kw) {
   });
 }
 
+function beschrijfTriggerVoorLog_(trigger) {
+  var info = {};
+  try { info.handler = trigger.getHandlerFunction(); } catch(_) { info.handler = ''; }
+  try { info.eventType = trigger.getEventType(); } catch(_) { info.eventType = ''; }
+  try { info.source = trigger.getTriggerSource(); } catch(_) { info.source = ''; }
+  try { info.sourceId = trigger.getTriggerSourceId(); } catch(_) { info.sourceId = ''; }
+  return info;
+}
+
+function logTriggerCheck_(info) {
+  logBetaalStatusDebug_('trigger-check', info || {});
+}
+
 function installeerJaarTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function(t) {
-    var fn = t.getHandlerFunction();
-    if (fn === 'onEdit' || fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_' || fn === 'onChangeStructuur') ScriptApp.deleteTrigger(t);
+  var vooraf = ScriptApp.getProjectTriggers();
+  vooraf.forEach(function(t, idx) {
+    var tr = beschrijfTriggerVoorLog_(t);
+    logTriggerCheck_({
+      fase: 'vooraf',
+      index: idx,
+      handler: tr.handler,
+      eventType: tr.eventType,
+      source: tr.source,
+      sourceId: tr.sourceId,
+      spreadsheetId: CONFIG.SPREADSHEET_ID
+    });
   });
-  ScriptApp.newTrigger('onEditJaar').forSpreadsheet(CONFIG.SPREADSHEET_ID).onEdit().create();
-  ScriptApp.newTrigger('onChangeStructuur').forSpreadsheet(CONFIG.SPREADSHEET_ID).onChange().create();
-  ScriptApp.newTrigger('controleerKwartaaloverzicht_').timeBased().everyHours(1).create();
+
+  vooraf.forEach(function(t) {
+    var fn = t.getHandlerFunction();
+    if (fn === 'onEdit' || fn === 'onEditJaar' || fn === 'controleerKwartaaloverzicht_' || fn === 'onChangeStructuur') {
+      var tr = beschrijfTriggerVoorLog_(t);
+      logTriggerCheck_({
+        fase: 'verwijderd',
+        handler: tr.handler,
+        eventType: tr.eventType,
+        source: tr.source,
+        sourceId: tr.sourceId,
+        spreadsheetId: CONFIG.SPREADSHEET_ID
+      });
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  var editTrigger = ScriptApp.newTrigger('onEditJaar').forSpreadsheet(CONFIG.SPREADSHEET_ID).onEdit().create();
+  var changeTrigger = ScriptApp.newTrigger('onChangeStructuur').forSpreadsheet(CONFIG.SPREADSHEET_ID).onChange().create();
+  var controleTrigger = ScriptApp.newTrigger('controleerKwartaaloverzicht_').timeBased().everyHours(1).create();
+
+  [editTrigger, changeTrigger, controleTrigger].forEach(function(t) {
+    var tr = beschrijfTriggerVoorLog_(t);
+    logTriggerCheck_({
+      fase: 'nieuw',
+      handler: tr.handler,
+      eventType: tr.eventType,
+      source: tr.source,
+      sourceId: tr.sourceId,
+      spreadsheetId: CONFIG.SPREADSHEET_ID
+    });
+  });
+
+  var nadien = ScriptApp.getProjectTriggers();
+  var editAantal = 0;
+  nadien.forEach(function(t) {
+    var tr = beschrijfTriggerVoorLog_(t);
+    if (tr.eventType && tr.eventType.toString().indexOf('ON_EDIT') > -1) editAantal++;
+  });
+  logTriggerCheck_({
+    fase: 'eindtotaal',
+    totaalTriggers: nadien.length,
+    installableEditTriggers: editAantal,
+    spreadsheetId: CONFIG.SPREADSHEET_ID
+  });
   Logger.log('✅ Triggers geïnstalleerd.');
   try {
     SpreadsheetApp.getUi().alert(
@@ -190,6 +455,10 @@ function installeerJaarTrigger() {
 }
 
 function installeerBenodigdeTriggers() {
+  logTriggerCheck_({
+    fase: 'start-installeerBenodigdeTriggers',
+    spreadsheetId: CONFIG.SPREADSHEET_ID
+  });
   installeerJaarTrigger();
 }
 

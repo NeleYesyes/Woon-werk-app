@@ -9,11 +9,11 @@ const CONFIG = {
     WOON_WERK:          'Woon-Werk (trein-De Lijn)',
     DIENSTVERPLAATSING: 'Dienstverplaatsing',
   },
-  DRIVE_MAP_ID:      '14LoAJybVBjvEo3n-KxYmwoeonX6qEUab',  // map voor bewijsstukken (uploads)
-  BACKUP_MAP_ID:     '14LoAJybVBjvEo3n-KxYmwoeonX6qEUab',  // map voor wekelijkse backups — pas aan naar eigen backup-map
+  DRIVE_MAP_ID:      '15gKgSKw_DDxUEG4fg_KyJpN5akbamoFo',  // map voor bewijsstukken (uploads)
+  BACKUP_MAP_ID:     '1a5gbKQVgx_WEpEh6ZjyI2OWeQ9mucm7J',  // map voor wekelijkse backups — pas aan naar eigen backup-map
   TEST_DATUM:        null,   // 'YYYY-MM-DD' of null
   TEST_MODUS:        true,
-  TEST_EMAIL:        'Nele.Moerman@academie-ieper.be',
+  TEST_EMAIL:        'Mattie Archie@academie-ieper.be',
   RECIPIENT_EMAILS:  'Nele.Delameilleure@ieper.be',  // komma-gescheiden bij meerdere ontvangers
   ADMIN_EMAILS:      'nele.delameilleure@academie-ieper.be',
 };
